@@ -1,10 +1,11 @@
-#include "euclidean.h"
 #include "utils.h"
 #include <algorithm>
 
 namespace encoder
 {
-
+/*
+ * filter out points are essentially zero.
+ * */
 void filter_vals(cv::Mat& img, std::vector<std::pair<float, float>>& idx_vals,
     std::vector<float>& range_vals, int c_idx, int r_idx, int len, int height) {
   
@@ -20,6 +21,9 @@ void filter_vals(cv::Mat& img, std::vector<std::pair<float, float>>& idx_vals,
   return;
 }
 
+/*
+ * fit 3d points in a plane.
+ * */
 cv::Vec4f plane_fitting(std::vector<std::pair<float, float>> idx_vals,
                                     std::vector<float> range_vals) {
   if (idx_vals.size() < 3) throw -1;
@@ -403,72 +407,10 @@ void export_mats(std::vector<cv::Mat*>& img, int tile_size) {
   }
 }
 
-std::pair<int, float> cross_channel_fit(std::vector<cv::Mat*>& img, std::vector<cv::Mat*>& r_img,
-       const int * idx_sizes, const float threshold, const int tile_size, const int channel) {
-  // some init
-  int tt2 = tile_size*tile_size;
-  int cross_fit_cnt = 0;
-  float cross_point_cnt = 0.f;
-  // first assume that every kxk tile can be fitted into a plane;
-  // here both i and j and len are in the unit of kxk tile.
-  // the initial step is to merge kxk tile horizontally.
-  for (int r_idx = 0; r_idx < idx_sizes[1]; r_idx++) {
-    int c_idx = 0;
-    int serial_num = 0;
-    int len = 1;
-    cv::Vec4f prev_c(0.f, 0.f, 0.f, 0.f);
-    cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
-    std::vector<float> avgs;
-    std::vector<float> prev_avgs;
-
-    while (c_idx+len < idx_sizes[2]) {
-      // std::cout <<  r_idx << " " << c_idx << "+" << len << std::endl;
-      // when (len==1) save c to prev_c in case len can't be 2
-      if (len == 1) {
-        if (!merge_whole(img, r_img, c_idx, r_idx, prev_c, 1, 1, tile_size, threshold, prev_avgs)) {
-          c_idx++;
-          continue;
-        }
-      }
-
-      if (merge_whole(img, r_img, c_idx, r_idx, c, len+1, 1, tile_size, threshold, avgs)) {
-        len++;
-        if (len+c_idx >= idx_sizes[2]) {
-          for (int i = 0; i < img.size(); i++)
-            zero_out(*(img[i]), *(r_img[i]), c, c_idx*tile_size, r_idx*tile_size,
-                len*tile_size, tile_size, avgs[i]);
-
-          cross_fit_cnt++;
-          cross_point_cnt += tt2*len*channel;
-          break;
-        }
-        prev_c = c;
-        prev_avgs = std::vector<float>(avgs);
-      } else {
-        for (int i = 0; i < img.size(); i++)
-          zero_out(*(img[i]), *(r_img[i]), prev_c, c_idx*tile_size, r_idx*tile_size,
-              len*tile_size, tile_size, prev_avgs[i]);
-
-        cross_fit_cnt++;
-        cross_point_cnt += tt2*len*channel;
-        c_idx = c_idx+len;
-        len = 1;
-        if (len+c_idx >= idx_sizes[2]) {
-          break;
-        }
-      }
-    }
-  }
-  // export_mats(img, tile_size);
-
-  return std::make_pair(cross_fit_cnt, cross_point_cnt);
-}
-
-
 /*
  * test and merge the next tiles with previous fitted coefficients 
  * */
-bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c, int idx,
+bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c,
            int len, int height, int scale, float threshold) {
   // first change the index to mat idx, a.k.a. scalex
   c_idx *= scale; r_idx *= scale;
@@ -488,10 +430,6 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c, int idx,
   // plane fitting
   try {
     c = plane_fitting(idx_vals, range_vals);
-  } catch (alglib::ap_error) {
-    // printf("[Fitting]: cant fit this..\n");
-    c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
-    return false;
   } catch (int e) {
     return false;
   }
@@ -506,15 +444,16 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c, int idx,
 
 
 /*
- * img: the orignal point cloud
+ * img: the range image from the orignal point cloud
  * b_mat: the binary map to indicate whether the tile is fitted or not
- * idx_size: the dimension of the point cloud
- * 
+ * idx_size: the dimension of the point cloud divided by the tile size
+ * NOTE: img size is [tile_size] larger than b_mat
  * */
-int single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
+void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
      std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
      const float threshold, const int tile_size) {
 
+  int fit_cnt = 0, unfit_cnt = 0;
   int tt2 = tile_size*tile_size;
   // first assume that every kxk tile can be fitted into a plane;
   // here both i and j and len are in the unit of kxk tile.
@@ -529,43 +468,53 @@ int single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
     while (c_idx+len < idx_sizes[1]) {
       // when (len==1) save c to prev_c in case len can't be 2
       if (len == 1) {
-        idx_mats.at<int>(r_idx, c_idx) = serial_num;
         if (!merge(img, c_idx, r_idx, prev_c, 1, 1, tile_size, threshold)) {
-          unfit_cnts[itr] += 1;
+          // set the b_mat to be 0 indicated the tile cannot be fitted
+          b_mat.at<int>(r_idx, c_idx) = 0;
           c_idx++;
-          serial_num++;
+          len = 1;
+          unfit_cnt++;
           continue;
+        } else {
+          fit_cnt++;
+          // tile can be fitted
+          b_mat.at<int>(r_idx, c_idx) = 1;
         }
       }
 
-      if (merge(img, c_idx, r_idx, c, itr, len+1, 1, tile_size, threshold)) {
-        idx_mats.at<int>(r_idx, c_idx+len) = serial_num;
-        len++;
+      if (merge(img, c_idx, r_idx, c, len+1, 1, tile_size, threshold)) {
         // if len+c_idx already greater than the entire column size
         if (len+c_idx >= idx_sizes[2]) {
-          coeffiecients.push_back(c);
-          tile_fit_lengths.push_back(len+1);
+          coefficients.push_back(c);
+          tile_fit_lengths.push_back(std::min(len+1, idx_sizes[1]-c_idx));
+          b_mat.at<int>(r_idx, idx_sizes[1]-1) = 1;
           break;
+        } else {
+          prev_c = c;
+          b_mat.at<int>(r_idx, c_idx+len) = 1;
         }
-        prev_c = c;
+        len++;
+        fit_cnt++;
       } else {
-        coeffiecients.push_back(prev_c);
+        coefficients.push_back(prev_c);
+        tile_fit_lengths.push_back(len);
         c_idx = c_idx+len;
         len = 1;
+        prev_c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+        unfit_cnt++;
         if (len+c_idx >= idx_sizes[2]) {
-          idx_mats.at<int>(itr, r_idx, idx_sizes[2]-1) = serial_num;
           break;
         }
       }
     }
   }
-  std::cout << " with fitting_cnts: " << fit_cnts[itr]
-            << " with unfitting_cnts: " << unfit_cnts[itr] << std::endl;
- 
-  // export_mats(img, tile_size);
-  return indi_point_cnt;
+
+  std::cout << " with fitting_cnts: " << fit_cnt
+            << " with unfitting_cnts: " << unfit_cnt << std::endl;
+  return;
 }
 
+/*
 // this function is the initialization
 // of the oracle analysis on one particular
 // function.
@@ -643,6 +592,6 @@ std::pair<float, cv::Vec4f> multi_channel_compression(std::vector<cv::Mat*>& img
                                   individual_fitting_ratio,
                                   median_fitting_ratio,
                                   unfitting_ratio));
-}
+} */
 
 }
