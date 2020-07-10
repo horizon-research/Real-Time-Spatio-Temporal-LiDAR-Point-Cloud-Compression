@@ -13,7 +13,7 @@ void filter_vals(cv::Mat& img, std::vector<std::pair<float, float>>& idx_vals,
     for (int c = c_idx; c < std::min(len+c_idx, img.cols); c++) {
       auto vec = img.at<cv::Vec4f>(r, c);
       if (vec[0] > 0.0){
-        idx_vals.push_back(std::make_pair(r-r_idx, c-c_idx));
+        idx_vals.push_back(std::make_pair(float(r-r_idx), float(c-c_idx)));
         range_vals.push_back(vec[0]);
       }
     }
@@ -24,8 +24,8 @@ void filter_vals(cv::Mat& img, std::vector<std::pair<float, float>>& idx_vals,
 /*
  * fit 3d points in a plane.
  * */
-cv::Vec4f plane_fitting(std::vector<std::pair<float, float>> idx_vals,
-                                    std::vector<float> range_vals) {
+cv::Vec4f plane_fitting(std::vector<std::pair<float, float>>& idx_vals,
+                                    std::vector<float>& range_vals) {
   if (idx_vals.size() < 3) throw -1;
 
   cv::Vec3f sum(0, 0, 0);
@@ -125,7 +125,7 @@ cv::Vec4f plane_fitting(std::vector<std::pair<float, float>> idx_vals,
 
   if (factors[2] == 0.f || factors[3] == 0.f) throw -1;
   
-  return factors;
+  return cv::Vec4f(factors);
 }
 
 bool test_tile(cv::Mat& img, const cv::Vec4f& c, float threshold,
@@ -215,60 +215,6 @@ bool check_mat(cv::Mat& img, const cv::Vec4f& c, float threshold,
     }
   }
   return true;
-}
-
-void export_mat(cv::Mat& mat, const char* file_name, const int* idx_sizes, int precision) {
-  std::ofstream outfile;
-  outfile << std::fixed;
-  outfile.open(file_name);
-  for (int i = 0; i < idx_sizes[2]; i++) {
-    for (int j = 0; j < idx_sizes[1]; j++) {
-      for (int k = 0; k < idx_sizes[0]; k++) {
-        auto val = mat.at<float>(k, j, i);
-        outfile << std::setprecision(precision)
-                << val << ":"; //  << vec[1] // <<":"<< vec[2] <<":"<< vec[3]
-      }
-      outfile <<  ",";
-    }
-    outfile << std::endl;
-  }
-  outfile.close();
-}
-
-int export_comp(cv::Mat& mat, const char* file_name, const int* idx_sizes, int precision) {
-  std::ofstream outfile;
-  outfile << std::fixed;
-  outfile.open(file_name);
-  for (int i = 0; i < idx_sizes[2]; i++) {
-    for (int j = 0; j < idx_sizes[1]; j++) {
-      for (int k = 0; k < idx_sizes[0]; k++) {
-        auto val = mat.at<cv::Vec2f>(k, j, i);
-        outfile << std::setprecision(precision)
-                << val[0] << ":" << val[1] << "--"; //  << vec[1] // <<":"<< vec[2] <<":"<< vec[3]
-      }
-      outfile <<  ",";
-    }
-    outfile << std::endl;
-  }
-  outfile.close();
-
-  int cnt = 0;
-  for (int i = 0; i < idx_sizes[2]; i += 4) {
-    for (int j = 0; j < idx_sizes[1]; j += 4) {
-      for (int k = 0; k < idx_sizes[0]; k++) {
-        bool check = false;
-        for (int ii = 0; ii < 4; ii++) {
-          for (int jj = 0; jj < 4; jj++) {
-            auto val = mat.at<cv::Vec2f>(k, j+jj, i+ii);
-            if (val[0] > 0.f) check = true;
-          }
-        }
-        if (check) cnt++;
-      }
-    }
-  }
-  std::cout << "The unfitted tiles: " << cnt << std::endl;
-  return cnt;
 }
 
 int delta_coding(cv::Mat& mat, const int* idx_sizes, int tile_size) {
@@ -484,32 +430,33 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
 
       if (merge(img, c_idx, r_idx, c, len+1, 1, tile_size, threshold)) {
         // if len+c_idx already greater than the entire column size
-        if (len+c_idx >= idx_sizes[2]) {
-          coefficients.push_back(c);
+        if (len+c_idx >= idx_sizes[1]) {
+          coefficients.push_back(cv::Vec4f(c));
           tile_fit_lengths.push_back(std::min(len+1, idx_sizes[1]-c_idx));
           b_mat.at<int>(r_idx, idx_sizes[1]-1) = 1;
           break;
         } else {
-          prev_c = c;
+          prev_c = cv::Vec4f(c);
           b_mat.at<int>(r_idx, c_idx+len) = 1;
         }
         len++;
         fit_cnt++;
       } else {
-        coefficients.push_back(prev_c);
+        coefficients.push_back(cv::Vec4f(prev_c));
         tile_fit_lengths.push_back(len);
         c_idx = c_idx+len;
         len = 1;
         prev_c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
         unfit_cnt++;
-        if (len+c_idx >= idx_sizes[2]) {
+        if (len+c_idx >= idx_sizes[1]) {
           break;
         }
       }
     }
+    coefficients.push_back(cv::Vec4f(prev_c));
   }
 
-  std::cout << " with fitting_cnts: " << fit_cnt
+  std::cout << "Single with fitting_cnts: " << fit_cnt
             << " with unfitting_cnts: " << unfit_cnt << std::endl;
   return;
 }
