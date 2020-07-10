@@ -10,15 +10,11 @@
 
 namespace encoder
 {
-/*
-float characterize_occupation(cv::Mat& occ_m, int tile_size, const int* mat_sizes, float pcloud_size);
 
-std::pair<float, cv::Vec4f> multi_channel_compression(std::vector<cv::Mat*>& img, 
-          std::vector<cv::Mat*>& r_img, const int * mat_sizes, float threshold,
-          int tile_size, int channel, cv::Mat& factor_m);
-*/
 void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
      std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
+     std::vector<float>& unfit_nums, std::vector<int>& unfit_code, 
      const float threshold, const int tile_size);
+
 }
 #endif

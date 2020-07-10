@@ -65,11 +65,7 @@ int main(int argc, char** argv) {
 
   /*******************************************************************/
   // convert range map
-  total_pcloud_size = 0;
 
-  // char org_file[64];
-  // sprintf(org_file, "./org/%06d.ply", (i));
-  // output_cloud(pcloud_data, org_file);
   std::cout << "CURRENT pcloud size: " << pcloud_data.size() << std::endl;
   
   // Characterize Range Map
@@ -96,10 +92,14 @@ int main(int argc, char** argv) {
   // fitting range map
   std::vector<cv::Vec4f> coefficients;
   std::vector<int> tile_fit_lengths;
+  std::vector<float> unfit_nums;
+  std::vector<int> code;
+
   cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   
   encoder::single_channel_fit(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                              tile_fit_lengths, threshold, tile_size);
+                              tile_fit_lengths, unfit_nums, unfit_code,
+                              threshold, tile_size);
   
   // pcc_res.fit_times->push_back(fit_time);
   

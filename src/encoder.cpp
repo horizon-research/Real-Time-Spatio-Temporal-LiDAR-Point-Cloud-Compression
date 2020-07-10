@@ -128,75 +128,6 @@ cv::Vec4f plane_fitting(std::vector<std::pair<float, float>>& idx_vals,
   return cv::Vec4f(factors);
 }
 
-bool test_tile(cv::Mat& img, const cv::Vec4f& c, float threshold,
-               int c_idx, int r_idx, int len, int height, std::vector<float>& avgs) {
-  int cnt = 0;
-  float sum = 0;
-  for (int j = 0; j < height; j++) {
-    for (int i = 0; i < len; i++) {
-      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
-      float actual_value = vec[0];
-      if (actual_value > 0) {
-        cnt++;
-        sum += c[0]*vec[0] + c[1]*j + c[2]*i;
-      }
-    }
-  }
-  float avg = (cnt == 0) ? 0 : sum/cnt;
-  avgs.push_back(avg);
-
-  for (int i = 0; i < len; i++) {
-    for (int j = 0; j < height; j++) {
-      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
-      float actual_value = vec[0];
-      if (actual_value <= 0) continue;
-
-      float val = fabs(-avg/(c[0]*vec[0] + c[1]*j + c[2]*i))*vec[0];
-      float diff = fabs(val - actual_value);
-
-      if (diff > threshold) return false;
-    }
-  }
-  return true;
-}
-
-bool comp_result(cv::Mat& img, cv::Mat& comp_mat, const cv::Vec4f& c, float threshold,
-                 int c_idx, int r_idx, int len, int height, int channel) {
-  int cnt = 0;
-  float sum = 0;
-  for (int j = 0; j < height; j++) {
-    for (int i = 0; i < len; i++) {
-      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
-      float actual_value = vec[0];
-      if (actual_value > 0) {
-        cnt++;
-        sum += c[0]*vec[0] + c[1]*j + c[2]*i;
-      }
-    }
-  }
-
-  float avg = sum/cnt;
-  int unfit_cnt = 0;
-
-  for (int j = 0; j < height; j++) {
-    for (int i = 0; i < len; i++) {
-      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
-      float actual_value = vec[0];
-      if (actual_value == 0) {
-        comp_mat.at<cv::Vec2f>(channel, r_idx+j, c_idx+i) = cv::Vec2f(0, 0);
-        continue;
-      }
-      float val = fabs(avg/(c[0]*vec[0] + c[1]*j + c[2]*i))*vec[0];
-  
-      float diff = fabs(val - actual_value);
-      if (diff > threshold) {
-        // std::cout << val << " " << vec[0] << std::endl;
-        comp_mat.at<cv::Vec2f>(channel, r_idx+j, c_idx+i) = cv::Vec2f(val, vec[0]);
-      }
-    }
-  }
-  return true;
-}
 
 bool check_mat(cv::Mat& img, const cv::Vec4f& c, float threshold,
                int c_idx, int r_idx, int len, int height) {
@@ -397,6 +328,7 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c,
  * */
 void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
      std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
+     std::vector<float>& unfit_nums, std::vector<int>& unfit_code, 
      const float threshold, const int tile_size) {
 
   int fit_cnt = 0, unfit_cnt = 0;
@@ -420,6 +352,7 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           c_idx++;
           len = 1;
           unfit_cnt++;
+          copy_unfit_num
           continue;
         } else {
           fit_cnt++;
