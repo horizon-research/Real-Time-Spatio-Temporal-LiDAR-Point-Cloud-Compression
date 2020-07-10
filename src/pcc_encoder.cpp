@@ -4,29 +4,26 @@
 
 #include "pcc_module.h"
 #include "encoder.h"
-#include "multi_channel.h"
 
 int main(int argc, char** argv) { 
   
-  std::string dir_path, calib_path, out_path;
+  std::string file_path;
   std::string input_format("binary");
   float pitch_precision, yaw_precision, threshold;
-  int tile_size, channel_size = 5, frame_cnt = 1000;
+  int tile_size;
 
   namespace po = boost::program_options;
 
   po::options_description opts("PCC options");
   opts.add_options()
     ("help,h", "Print help messages")
-    ("path", po::value<std::string>(&dir_path)->required(), "dataset directory path")
-    ("out", po::value<std::string>(&out_path), "output data directory path")
+    ("file", po::value<std::string>(&file_path)->required(), "raw point cloud data path")
     ("pitch,p", po::value<float>(&pitch_precision)->required(), "pitch precision")
     ("yaw,y", po::value<float>(&yaw_precision)->required(), "yaw precision")
     ("threshold,t", po::value<float>(&threshold)->required(), "threshold value for fitting")
     ("format,f",  po::value<std::string>(&input_format),
      "trace_file input format: binary(default) or ascii")
-    ("tile,l", po::value<int>(&tile_size)->required(), "fitting tile size")
-    ("num_frame,n", po::value<int>(&frame_cnt), "pre-setting frame count = 1000");
+    ("tile,l", po::value<int>(&tile_size)->required(), "fitting tile size");
 
   po::variables_map vm;
 
@@ -49,11 +46,8 @@ int main(int argc, char** argv) {
   }
   
   // create a vector to store frames;
-  std::vector<std::vector<point_cloud>> frames;
-  load_trace_data(dir_path, frames, input_format, frame_cnt);
-
-  long long org_pcloud_cnt = 0;
-  long long rec_pcloud_cnt = 0;
+  std::vector<point_cloud> pcloud_data;
+  load_pcloud(file_path, pcloud_data);
 
   PccResult pcc_res;
 
@@ -63,81 +57,78 @@ int main(int argc, char** argv) {
   int row = (VERTICAL_DEGREE/yaw_precision);
   row = ((row + tile_size-1)/tile_size)*tile_size;
   int col = HORIZONTAL_DEGREE/pitch_precision + tile_size;
+  col = ((col + tile_size-1)/tile_size)*tile_size;
 
   double proj_time, fit_time;
   float psnr, total_pcloud_size;
   int mat_div_tile_sizes[] = {row/tile_size, col/tile_size};
 
   /*******************************************************************/
-  for (int i = 0; i < frames.size(); i++) {
-    // convert range map
-    total_pcloud_size = 0;
+  // convert range map
+  total_pcloud_size = 0;
+
+  // char org_file[64];
+  // sprintf(org_file, "./org/%06d.ply", (i));
+  // output_cloud(pcloud_data, org_file);
+  std::cout << "CURRENT pcloud size: " << pcloud_data.size() << std::endl;
   
-    auto& pcloud_data = frames[i];
+  // Characterize Range Map
+  // floating map;
+  cv::Mat* f_mat = new cv::Mat(row, col, CV_32FC4, cv::Scalar(0.f,0.f,0.f,0.f));
   
-    char org_file[64];
-    sprintf(org_file, "./org/%06d.ply", (i));
-    // output_cloud(pcloud_data, org_file);
-    std::cout << "CURRENT pcloud size: " << pcloud_data.size() << std::endl;
+  proj_time = map_projection(*f_mat, pcloud_data, pitch_precision, yaw_precision, 'e');
+  
+  pcc_res.proj_times->push_back(proj_time);
+  
+  // compute compression rate: bit-per-point (bpp)
+  pcc_res.compression_rate->push_back(8.0f*f_mat->cols*f_mat->rows/pcloud_data.size());
+  
+  // loss error compute;
+  //psnr = compute_loss_rate<cv::Vec4f>(*f_mat, pcloud_data, pitch_precision, yaw_precision);
+  
+  // update the info;
+  pcc_res.loss_rate->push_back(psnr);
+  
+  std::cout << "Loss rate [PSNR]: " << psnr << " Compression rate: "
+            << pcc_res.compression_rate->back() << " bpp." << std::endl;
+  
+  /*******************************************************************/
+  // fitting range map
+  std::vector<cv::Vec4f> coefficients;
+  std::vector<int> tile_fit_lengths;
+  cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
+  
+  encoder::single_channel_fit(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                              tile_fit_lengths, threshold, tile_size);
+  
+  // pcc_res.fit_times->push_back(fit_time);
+  
+  /*
+  // loss error compute;
+  for (int j = 0; j < channel; j++) {
+    auto& t_pcloud = t_frames[j];
+    psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
+    pcc_res.restored_loss_rate->push_back(psnr);
+    std::cout << "[restore] psnr: " << psnr << std::endl;
     
-    // Characterize Range Map
-    // floating map;
-    cv::Mat* f_mat = new cv::Mat(row, col, CV_32FC4, cv::Scalar(0.f,0.f,0.f,0.f));
-  
-    proj_time = map_projection(*f_mat, pcloud_data, pitch_precision, yaw_precision, 'e');
-  
-    pcc_res.proj_times->push_back(proj_time);
-  
-    // compute compression rate: bit-per-point (bpp)
-    pcc_res.compression_rate->push_back(8.0f*f_mat->cols*f_mat->rows/pcloud_data.size());
-  
-    // loss error compute;
-    //psnr = compute_loss_rate<cv::Vec4f>(*f_mat, pcloud_data, pitch_precision, yaw_precision);
-  
-    // update the info;
-    pcc_res.loss_rate->push_back(psnr);
+    std::vector<point_cloud> r_pcloud;
+    restore_pcloud<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision, 1, r_pcloud);
+    auto move = moves[i+j];
+    // r_pcloud = translate_pcloud(r_pcloud, move, -channel_times[j]);
+    // output pcloud
+    char ply_file[64];
+    sprintf(ply_file, "./ply/%06d.ply", (i+j));
+    // output_cloud(r_pcloud, ply_file);
     
-    std::cout << "Loss rate [PSNR]: " << psnr << " Compression rate: "
-              << pcc_res.compression_rate->back() << " bpp." << std::endl;
+    rec_pcloud_cnt += r_pcloud.size();
   
-    /*******************************************************************/
-    // fitting range map
-    std::vector<cv::Vec4f> coefficients;
-    std::vector<int> tile_fit_lengths;
-    cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
-  
-    encoder::single_channel_fit(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                                tile_fit_lengths, threshold, tile_size);
-  
-    // pcc_res.fit_times->push_back(fit_time);
-  
-    /*
-    // loss error compute;
-    for (int j = 0; j < channel; j++) {
-      auto& t_pcloud = t_frames[j];
-      psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
-      pcc_res.restored_loss_rate->push_back(psnr);
-      std::cout << "[restore] psnr: " << psnr << std::endl;
-      
-      std::vector<point_cloud> r_pcloud;
-      restore_pcloud<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision, 1, r_pcloud);
-      auto move = moves[i+j];
-      // r_pcloud = translate_pcloud(r_pcloud, move, -channel_times[j]);
+    if (out_path.size() > 0) {
       // output pcloud
-      char ply_file[64];
-      sprintf(ply_file, "./ply/%06d.ply", (i+j));
-      // output_cloud(r_pcloud, ply_file);
-      
-      rec_pcloud_cnt += r_pcloud.size();
-  
-      if (out_path.size() > 0) {
-        // output pcloud
-        char out_file[64];
-        sprintf(out_file, "./%s/%06d.bin", out_path.c_str(), (i+j));
-        pcloud2bin(std::string(out_file), r_pcloud);
-      }
-  */
-  }
+      char out_file[64];
+      sprintf(out_file, "./%s/%06d.bin", out_path.c_str(), (i+j));
+      pcloud2bin(std::string(out_file), r_pcloud);
+    }
+  } */
   
   std::cout << "**********************************************************" << std::endl;
   

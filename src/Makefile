@@ -11,7 +11,6 @@ BOOST_LIBS=-lboost_program_options \
 INCLUDE=-I/usr/local/include -I `pkg-config --cflags opencv` \
 				-I/usr/include/boost \
 				-I.
-			 	# -I/usr/local/include/OpenEXR \
 
 LIBS=-lstdc++fs `pkg-config opencv --cflags --libs` \
 		 -L/usr/local/lib -Wl,-rpath=/usr/local/lib ${BOOST_LIBS} \
@@ -19,7 +18,6 @@ LIBS=-lstdc++fs `pkg-config opencv --cflags --libs` \
 
 # my PCC library
 DEPS=utils.cpp encoder.cpp pcc_module.cpp
-		 # euclidean.cpp compensation.cpp pcc_module.cpp multi_channel.cpp
 
 OBJS=utils.o encoder.o pcc_module.o
 		 # euclidean.o compensation.o pcc_module.o multi_channel.o
