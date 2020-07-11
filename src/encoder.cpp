@@ -254,7 +254,7 @@ void export_mats(std::vector<cv::Mat*>& img, int tile_size) {
     char img_file[64];
     sprintf(img_file, "indi_%06d.jpg", k);
     auto norm_img = normalized_img(*(img[k]), tile_size);
-    std::vector<int> params = {CV_IMWRITE_JPEG_QUALITY, 100};
+    std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, 100};
     cv::imwrite(img_file, norm_img, params);
   }
 }
@@ -298,19 +298,36 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c,
  * copy a tile into unfitted number vector
  * */
 void copy_unfit_points(cv::Mat& img, std::vector<float>& unfit_nums,
-                      std::vector<int>& unfit_code, int r_idx,
-                      int c_idx, int tile_size) {
-  int code = 0;
+                       int r_idx,int c_idx, int tile_size) {
+
   for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
     for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
       float num = img.at<cv::Vec4f>(row, col)[0];
       if (num != 0.f) {
         unfit_nums.push_back(num);
-        code += 1 << (row - r_idx)*tile_size + (col - c_idx);
       }
     }
   }
-  unfit_code.push_back(code);
+  return;
+}
+
+void encode_occupation_mat(cv::Mat& img, cv::Mat& occ_mat, int tile_size,
+                           const int* idx_sizes) {
+
+  for (int r_idx = 0; r_idx < idx_sizes[0]; r_idx++) {
+    for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
+      int code = 0;
+      for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
+        for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
+          float num = img.at<cv::Vec4f>(row, col)[0];
+          if (num != 0.f) {
+            code += 1 << (row - r_idx)*tile_size + (col - c_idx);
+          }
+        }
+      }
+      occ_mat.at<int>(r_idx, c_idx) = code;
+    }
+  }
   return;
 }
 
@@ -320,13 +337,17 @@ void copy_unfit_points(cv::Mat& img, std::vector<float>& unfit_nums,
  * idx_size: the dimension of the point cloud divided by the tile size
  * NOTE: img size is [tile_size] larger than b_mat
  * */
-void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
-     std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
-     std::vector<float>& unfit_nums, std::vector<int>& unfit_code, 
-     const float threshold, const int tile_size) {
+double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
+                             std::vector<cv::Vec4f>& coefficients, cv::Mat& occ_mat,
+                             std::vector<float>& unfit_nums,
+                             std::vector<int>& tile_fit_lengths, 
+                             const float threshold, const int tile_size) {
 
   auto fit_start = std::chrono::high_resolution_clock::now(); 
 
+  // encode the occupatjon map
+  encode_occupation_mat(img, occ_mat, tile_size, idx_sizes); 
+  
   int fit_cnt = 0, unfit_cnt = 0;
   int tt2 = tile_size*tile_size;
   // first assume that every kxk tile can be fitted into a plane;
@@ -347,7 +368,7 @@ void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           c_idx++;
           len = 1;
           unfit_cnt++;
-          copy_unfit_points(img, unfit_nums, unfit_code, r_idx, c_idx, tile_size);
+          copy_unfit_points(img, unfit_nums, r_idx, c_idx, tile_size);
           continue;
         } else {
           fit_cnt++;
@@ -380,7 +401,7 @@ void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
         }
       }
     }
-    coefficients.push_back(cv::Vec4f(prev_c));
+    // coefficients.push_back(cv::Vec4f(prev_c));
   }
 
   auto fit_end = std::chrono::high_resolution_clock::now();
@@ -389,88 +410,7 @@ void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
 
   std::cout << "Single with fitting_cnts: " << fit_cnt
             << " with unfitting_cnts: " << unfit_cnt << std::endl;
-  return;
-  // return fit_time;
+  return fit_time;
 }
-
-/*
-// this function is the initialization
-// of the oracle analysis on one particular
-// function.
-std::pair<float, cv::Vec4f> multi_channel_compression(std::vector<cv::Mat*>& img, 
-          std::vector<cv::Mat*>& r_img, const int * mat_sizes, float threshold,
-          int tile_size, int channel, cv::Mat& factor_m) {
-
-  // tile times tile
-  int tt2 = tile_size*tile_size;
-  
-  //  CROSS CHANNEL FITTING
-  //
-  int idx_sizes[] = {mat_sizes[0], mat_sizes[1]/tile_size, mat_sizes[2]/tile_size};
-  // some init
-  int cross_fit_cnt = 0;
-  float cross_point_cnt = 0.f;
-
-  if (channel > 1) {
-    auto cross_fit_res =  cross_channel_fit(img, r_img, idx_sizes, threshold, tile_size, channel);
-    cross_fit_cnt = cross_fit_res.first;
-    cross_point_cnt = cross_fit_res.second;
-  }
-  std::cout << "Cross-channel fitting with cross_fit_cnts: " << cross_fit_cnt << std::endl;
-  float cross_fitting_ratio = cross_point_cnt/(mat_sizes[1]*mat_sizes[2]*mat_sizes[0]);
-  std::cout << "Cross-channel filling ratio: " << cross_fitting_ratio << std::endl;
-
-  float indi_point_cnt = 0.f;
-  std::vector<int> fit_cnts(channel, 0);
-  std::vector<int> unfit_cnts(channel, 0);
-  // use to record the comparison between actual values and computed values
-  cv::Mat comp_mat(3, mat_sizes, CV_32FC2, cv::Scalar(0, 0));
-  // construct a index map
-  cv::Mat idx_mats(3, idx_sizes, CV_32SC1, cv::Scalar(0));
-  
-  indi_point_cnt = single_channel_fit(img, r_img, idx_sizes, threshold, comp_mat,
-                                      idx_mats, tile_size, channel, fit_cnts, unfit_cnts);
-
-  float individual_fitting_ratio = indi_point_cnt/(mat_sizes[1]*mat_sizes[2]*mat_sizes[0]);
-  std::cout << "Individual-channel filling ratio: " << individual_fitting_ratio << std::endl;
-  
-  float median_fit_cnt = median_check(img, r_img, comp_mat, threshold, mat_sizes, tile_size);
-  std::cout << "Median fitting_cnts: " << median_fit_cnt << std::endl;
-  float median_fitting_ratio = median_fit_cnt*tt2/(mat_sizes[1]*mat_sizes[2]*mat_sizes[0]);
-  std::cout << "Median filling ratio: " << median_fitting_ratio << std::endl;
-  
-  float unfitting_cnt = copy_unfit_points(img, r_img, mat_sizes, tile_size);
-  float unfitting_ratio = unfitting_cnt*tt2/(mat_sizes[1]*mat_sizes[2]*mat_sizes[0]);
-  std::cout << "Unfilling ratio: " << unfitting_ratio << std::endl;
-
-  int delta_cnt = delta_coding(comp_mat, mat_sizes, tile_size);
-  //unfitting_cnt = export_comp(comp_mat, "comp_mat.csv", mat_sizes, 2);
-
-  float tile_fit_cnt = 0.f;
-  for (auto i : fit_cnts)
-    tile_fit_cnt += i;
-
-  float cnt_bytes = (2.0f+idx_sizes[0])*cross_fit_cnt + 4.0f*median_fit_cnt 
-                  + 3.0f*tile_fit_cnt + delta_cnt;
-
-  // this is the additional bytes for fit coefficients index
-  cnt_bytes += (2.0f * (cross_fit_cnt + tile_fit_cnt) + 2.0f/8.0f*idx_sizes[1]*idx_sizes[2]);
-
-  float compression_rate = cnt_bytes / (mat_sizes[1]*mat_sizes[2]*channel);
-
-#ifndef PERFORMANCE
-  std::cout << "Compression rate: " << compression_rate
-            << "\n\twith cross fit: " << cross_fit_cnt
-            << " with tile fit: " << tile_fit_cnt
-            << "\n\twith unfit: " << unfitting_cnt << std::endl;
-#endif
-
-  // return std::make_pair(0, 0);
-  return std::make_pair(compression_rate,
-                        cv::Vec4f(cross_fitting_ratio,
-                                  individual_fitting_ratio,
-                                  median_fitting_ratio,
-                                  unfitting_ratio));
-} */
 
 }

@@ -8,11 +8,11 @@ CXXFLAGS=-std=c++11 -O3 -g
 BOOST_LIBS=-lboost_program_options \
 		 			 -lboost_system
 
-INCLUDE=-I/usr/local/include -I `pkg-config --cflags opencv` \
+INCLUDE=-I/usr/local/include -I `pkg-config --cflags opencv4` \
 				-I/usr/include/boost \
 				-I.
 
-LIBS=-lstdc++fs `pkg-config opencv --cflags --libs` \
+LIBS=-lstdc++fs `pkg-config opencv4 --cflags --libs` \
 		 -L/usr/local/lib -Wl,-rpath=/usr/local/lib ${BOOST_LIBS} \
 		 -L. -Wl,-rpath=.
 

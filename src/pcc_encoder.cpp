@@ -61,7 +61,6 @@ int main(int argc, char** argv) {
 
   double proj_time, fit_time;
   float psnr, total_pcloud_size;
-  int mat_div_tile_sizes[] = {row/tile_size, col/tile_size};
 
   /*******************************************************************/
   // convert range map
@@ -90,17 +89,19 @@ int main(int argc, char** argv) {
   
   /*******************************************************************/
   // fitting range map
+  int mat_div_tile_sizes[] = {row/tile_size, col/tile_size};
   std::vector<cv::Vec4f> coefficients;
   std::vector<int> tile_fit_lengths;
   std::vector<float> unfit_nums;
-  std::vector<int> unfit_code;
 
   cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
+  cv::Mat* occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   
-  encoder::single_channel_encode(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                              tile_fit_lengths, unfit_nums, unfit_code, threshold, tile_size);
-  
-  // pcc_res.fit_times->push_back(fit_time);
+  fit_time = encoder::single_channel_encode(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                                            *occ_mat, unfit_nums, tile_fit_lengths,
+                                            threshold, tile_size);
+ 
+  pcc_res.fit_times->push_back(fit_time);
   
   // psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
   // pcc_res.restored_loss_rate->push_back(psnr);
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
   
   std::cout << "**********************************************************" << std::endl;
   
-  // print_pcc_res(pcc_res);
+  print_pcc_res(pcc_res);
   
   return 0;
 }
