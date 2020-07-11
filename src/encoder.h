@@ -11,10 +11,10 @@
 namespace encoder
 {
 
-void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
+void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
      std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
      std::vector<float>& unfit_nums, std::vector<int>& unfit_code, 
-     const float threshold, const int tile_size);
+     float threshold, int tile_size);
 
 }
 #endif

@@ -1,5 +1,4 @@
-#include "utils.h"
-#include <algorithm>
+#include "encoder.h"
 
 namespace encoder
 {
@@ -173,30 +172,6 @@ int delta_coding(cv::Mat& mat, const int* idx_sizes, int tile_size) {
   return total_cnt;
 }
 
-int copy_unfit_points(std::vector<cv::Mat*>& img, std::vector<cv::Mat*>& r_img,
-                      const int *mat_sizes, int tile_size) {
-  int unfitted_tile = 0;
-  for (int k = 0; k < mat_sizes[0]; k++) {
-    for (int r_idx = 0; r_idx < mat_sizes[1]; r_idx += tile_size) {
-      for (int c_idx = 0; c_idx < mat_sizes[2]; c_idx += tile_size) {
-        bool check = false;
-        for (int ii = 0; ii < tile_size; ii++) {
-          for (int jj = 0; jj < tile_size; jj++) {
-            auto vec = img[k]->at<cv::Vec4f>(r_idx+ii, c_idx+jj);
-            if (vec[0] > 0.01f) {
-              check = true;
-              r_img[k]->at<cv::Vec4f>(r_idx+ii, c_idx+jj) = cv::Vec4f(vec);
-            }
-          }
-        }
-        if (check) unfitted_tile++;
-      }
-    }
-  }
-  std::cout << "[COPY] The unfitted tiles: " << unfitted_tile << std::endl;
-  return unfitted_tile;
-}
-
 float characterize_occupation(cv::Mat& occ_m, int tile_size, const int* mat_sizes, float pcloud_size) {
   std::map<int, int> m;
   for (int i = 0; i < occ_m.rows/tile_size; i++) {
@@ -319,6 +294,25 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c,
   return true;
 }
 
+/*
+ * copy a tile into unfitted number vector
+ * */
+void copy_unfit_points(cv::Mat& img, std::vector<float>& unfit_nums,
+                      std::vector<int>& unfit_code, int r_idx,
+                      int c_idx, int tile_size) {
+  int code = 0;
+  for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
+    for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
+      float num = img.at<cv::Vec4f>(row, col)[0];
+      if (num != 0.f) {
+        unfit_nums.push_back(num);
+        code += 1 << (row - r_idx)*tile_size + (col - c_idx);
+      }
+    }
+  }
+  unfit_code.push_back(code);
+  return;
+}
 
 /*
  * img: the range image from the orignal point cloud
@@ -326,10 +320,12 @@ bool merge(cv::Mat& img, int c_idx, int r_idx, cv::Vec4f& c,
  * idx_size: the dimension of the point cloud divided by the tile size
  * NOTE: img size is [tile_size] larger than b_mat
  * */
-void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
+void single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
      std::vector<cv::Vec4f>& coefficients, std::vector<int>& tile_fit_lengths,
      std::vector<float>& unfit_nums, std::vector<int>& unfit_code, 
      const float threshold, const int tile_size) {
+
+  auto fit_start = std::chrono::high_resolution_clock::now(); 
 
   int fit_cnt = 0, unfit_cnt = 0;
   int tt2 = tile_size*tile_size;
@@ -338,7 +334,6 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
   // the initial step is to merge kxk tile horizontally.
   for (int r_idx = 0; r_idx < idx_sizes[0]; r_idx++) {
     int c_idx = 0;
-    int serial_num = 0;
     int len = 1;
     cv::Vec4f prev_c(0.f, 0.f, 0.f, 0.f);
     cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
@@ -352,7 +347,7 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           c_idx++;
           len = 1;
           unfit_cnt++;
-          copy_unfit_num
+          copy_unfit_points(img, unfit_nums, unfit_code, r_idx, c_idx, tile_size);
           continue;
         } else {
           fit_cnt++;
@@ -380,7 +375,6 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
         c_idx = c_idx+len;
         len = 1;
         prev_c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
-        unfit_cnt++;
         if (len+c_idx >= idx_sizes[1]) {
           break;
         }
@@ -389,9 +383,14 @@ void single_channel_fit(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
     coefficients.push_back(cv::Vec4f(prev_c));
   }
 
+  auto fit_end = std::chrono::high_resolution_clock::now();
+  double fit_time = std::chrono::duration_cast<std::chrono::nanoseconds>(fit_end-fit_start).count();  
+  fit_time *= 1e-9;
+
   std::cout << "Single with fitting_cnts: " << fit_cnt
             << " with unfitting_cnts: " << unfit_cnt << std::endl;
   return;
+  // return fit_time;
 }
 
 /*

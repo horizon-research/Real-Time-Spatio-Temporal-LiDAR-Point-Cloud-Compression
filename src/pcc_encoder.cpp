@@ -1,5 +1,5 @@
 /*
- * This is an example of converting 3d lidar into 3d img for compression.
+ * This is an example of 3d lidar compression.
  * */
 
 #include "pcc_module.h"
@@ -93,50 +93,24 @@ int main(int argc, char** argv) {
   std::vector<cv::Vec4f> coefficients;
   std::vector<int> tile_fit_lengths;
   std::vector<float> unfit_nums;
-  std::vector<int> code;
+  std::vector<int> unfit_code;
 
   cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   
-  encoder::single_channel_fit(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                              tile_fit_lengths, unfit_nums, unfit_code,
-                              threshold, tile_size);
+  encoder::single_channel_encode(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                              tile_fit_lengths, unfit_nums, unfit_code, threshold, tile_size);
   
   // pcc_res.fit_times->push_back(fit_time);
   
-  /*
-  // loss error compute;
-  for (int j = 0; j < channel; j++) {
-    auto& t_pcloud = t_frames[j];
-    psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
-    pcc_res.restored_loss_rate->push_back(psnr);
-    std::cout << "[restore] psnr: " << psnr << std::endl;
+  // psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
+  // pcc_res.restored_loss_rate->push_back(psnr);
+  // std::cout << "[restore] psnr: " << psnr << std::endl;
     
-    std::vector<point_cloud> r_pcloud;
-    restore_pcloud<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision, 1, r_pcloud);
-    auto move = moves[i+j];
-    // r_pcloud = translate_pcloud(r_pcloud, move, -channel_times[j]);
-    // output pcloud
-    char ply_file[64];
-    sprintf(ply_file, "./ply/%06d.ply", (i+j));
-    // output_cloud(r_pcloud, ply_file);
-    
-    rec_pcloud_cnt += r_pcloud.size();
-  
-    if (out_path.size() > 0) {
-      // output pcloud
-      char out_file[64];
-      sprintf(out_file, "./%s/%06d.bin", out_path.c_str(), (i+j));
-      pcloud2bin(std::string(out_file), r_pcloud);
-    }
-  } */
   
   std::cout << "**********************************************************" << std::endl;
   
   // print_pcc_res(pcc_res);
-
-  // std::cout << "[Original]: Pcloud size: " << org_pcloud_cnt / frame_cnt << std::endl;
-  // std::cout << "[Restore]: Pcloud size: " << rec_pcloud_cnt / frame_cnt << std::endl;
-
+  
   return 0;
 }
 

@@ -29,6 +29,3 @@ objs:
 pcc_encoder: objs
 	${CC} -o $@ pcc_encoder.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
 
-pcc_multi_channel: objs
-	${CC} -o $@ pcc_multi_channel.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
-

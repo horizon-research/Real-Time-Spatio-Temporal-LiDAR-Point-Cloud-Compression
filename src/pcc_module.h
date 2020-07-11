@@ -29,8 +29,6 @@
 #include "struct.h"
 #include "config.h"
 #include "utils.h"
-// #include "analysis.h"
-// #include "compensation.h"
 
 double map_projection(cv::Mat& f_mat, std::vector<point_cloud>& pcloud_data,
                       float pitch_precision, float yaw_precision, char option);
