@@ -359,7 +359,7 @@ double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
     cv::Vec4f prev_c(0.f, 0.f, 0.f, 0.f);
     cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
 
-    while (c_idx+len < idx_sizes[1]) {
+    while (c_idx+len <= idx_sizes[1]) {
       // when (len==1) save c to prev_c in case len can't be 2
       if (len == 1) {
         if (!merge(img, c_idx, r_idx, prev_c, 1, 1, tile_size, threshold)) {

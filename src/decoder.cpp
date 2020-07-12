@@ -53,7 +53,7 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
   int tt2 = tile_size*tile_size;
   int fit_itr = 0;
   int unfit_nums_itr = 0;
-  int unfit_code_itr = 0;
+
   int unfit_cnt = 0;
   int fit_cnt = 0;
   // first assume that every kxk tile can be fitted into a plane;
@@ -76,7 +76,6 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
         }
         unfit_nums_itr = copy_unfit_points(img, unfit_nums, unfit_nums_itr,
                                            occ_code, r_idx, c_idx, tile_size);
-        unfit_code_itr++;
         unfit_cnt++;
       } else {
         if (len_itr < len) {
@@ -88,6 +87,7 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           len = tile_fit_lengths[fit_itr];
           calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
           fit_itr++;
+          len_itr++;
         }
         fit_cnt++;
       }
