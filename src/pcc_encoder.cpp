@@ -4,6 +4,7 @@
 
 #include "pcc_module.h"
 #include "encoder.h"
+#include "decoder.h"
 
 int main(int argc, char** argv) { 
   
@@ -102,7 +103,12 @@ int main(int argc, char** argv) {
                                             threshold, tile_size);
  
   pcc_res.fit_times->push_back(fit_time);
+
+  cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
   
+  decoder::single_channel_decode(*r_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                                 *occ_mat, tile_fit_lengths, unfit_nums, tile_size);
+
   // psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
   // pcc_res.restored_loss_rate->push_back(psnr);
   // std::cout << "[restore] psnr: " << psnr << std::endl;
