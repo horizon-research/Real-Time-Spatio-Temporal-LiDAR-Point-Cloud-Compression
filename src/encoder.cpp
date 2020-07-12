@@ -320,8 +320,8 @@ void encode_occupation_mat(cv::Mat& img, cv::Mat& occ_mat, int tile_size,
       for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
         for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
           float num = img.at<cv::Vec4f>(row, col)[0];
-          if (num != 0.f) {
-            code += 1 << (row - r_idx)*tile_size + (col - c_idx);
+          if (num > 0.1f) {
+            code += (1 << (row - r_idx*tile_size)*tile_size + (col - c_idx*tile_size));
           }
         }
       }
@@ -367,8 +367,6 @@ double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           b_mat.at<int>(r_idx, c_idx) = 0;
           c_idx++;
           len = 1;
-          unfit_cnt++;
-          copy_unfit_points(img, unfit_nums, r_idx, c_idx, tile_size);
           continue;
         } else {
           fit_cnt++;
@@ -401,7 +399,13 @@ double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
         }
       }
     }
-    // coefficients.push_back(cv::Vec4f(prev_c));
+    // copy all the unfitted numbers
+    for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
+      if (b_mat.at<int>(r_idx, c_idx) == 0) {
+        copy_unfit_points(img, unfit_nums, r_idx, c_idx, tile_size);
+        unfit_cnt++;
+      }
+    }
   }
 
   auto fit_end = std::chrono::high_resolution_clock::now();
