@@ -118,11 +118,21 @@ int main(int argc, char** argv) {
   
   import_coefficients(coefficients, "coefficients.bin");
   // 3. occ_mat: occupation map
-  
-  // 4. unfit_nums: unfitted_nums
-  
-  // 5. tile_fit_lengths
+  export_occ_mat(*occ_mat, "occ_mat.bin");
+  delete occ_mat;
 
+  occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
+  import_occ_mat(*occ_mat, "occ_mat.bin");
+  // 4. unfit_nums: unfitted_nums
+  export_vectors<float>(unfit_nums, "unfit_nums.bin");
+  unfit_nums.clear();
+  
+  import_vectors<float>(unfit_nums, "unfit_nums.bin");
+  // 5. tile_fit_lengths
+  export_vectors<int>(tile_fit_lengths, "tile_fit_lengths.bin");
+  tile_fit_lengths.clear();
+  
+  import_vectors<int>(tile_fit_lengths, "tile_fit_lengths.bin");
 
   // reconstruct the range image
   cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
@@ -146,6 +156,10 @@ int main(int argc, char** argv) {
   
   print_pcc_res(pcc_res);
   
+  delete f_mat;
+  delete r_mat;
+  delete occ_mat;
+  delete f_mat2;
   return 0;
 }
 

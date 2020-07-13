@@ -73,4 +73,31 @@ void import_coefficients(std::vector<cv::Vec4f>& coefficients,
   in_stream.close();
 }
 
+void export_occ_mat(cv::Mat& occ_mat, std::string filename) {
+  // open a file
+  std::ofstream out_stream(filename, std::ofstream::binary);
+
+  int code;
+  for (int row = 0; row < occ_mat.rows; row++) {
+    for (int col = 0; col < occ_mat.cols; col++) {
+      code = occ_mat.at<int>(row, col);
+      out_stream.write(reinterpret_cast<const char*>(&code), sizeof(code));
+    }
+  }
+  out_stream.close();
+}
+
+void import_occ_mat(cv::Mat& occ_mat, std::string filename) {
+  // open a file
+  std::ifstream in_stream(filename, std::ifstream::binary);
+
+  int code = 0;
+  for (int row = 0; row < occ_mat.rows; row++) {
+    for (int col = 0; col < occ_mat.cols; col++) {
+      in_stream.read(reinterpret_cast<char*>(&code), sizeof(code));
+      occ_mat.at<int>(row, col) = code;
+    }
+  }
+  in_stream.close();
+}
 
