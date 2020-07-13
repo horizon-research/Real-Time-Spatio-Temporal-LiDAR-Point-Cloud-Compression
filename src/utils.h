@@ -35,16 +35,11 @@ std::string pcloud2string(std::vector<point_cloud>& pcloud_data);
 
 void output_cloud(const std::vector<point_cloud>& pcloud, std::string filename);
 
-std::vector<float>
-output_normalize_cloud(const std::vector<point_cloud>& pcloud, std::string file_name);
+float compute_loss_rate(cv::Mat& img, const std::vector<point_cloud>& pcloud,
+                        float pitch_precision, float yaw_precision);
 
-void export_factor(cv::Mat& mat, const char* file_name, int precision);
-
-void load_trace_data(const std::string& dir_path, std::vector<std::vector<point_cloud>>& frames,
-    const std::string& input_format, int frame_cnt);
-
-void load_trace_calib(const std::string& calib_path,
-    std::vector<std::vector<float>>& moves, int frame_cnt);
+void restore_pcloud(cv::Mat& img, float pitch_precision, float yaw_precision,
+                    std::vector<point_cloud>& restored_pcloud);
 
 #include "utils_impl.h"
 

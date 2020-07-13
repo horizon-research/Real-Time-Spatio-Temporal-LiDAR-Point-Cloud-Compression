@@ -8,17 +8,12 @@ namespace decoder
  * */
 int copy_unfit_points(cv::Mat& img, std::vector<float>& unfit_nums,
                       int unfit_nums_itr, int occ_code,
-                      int r_idx, int c_idx, int tile_size, cv::Mat& org) {
+                      int r_idx, int c_idx, int tile_size) {
   int itr = 0;
   for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
     for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
       if (((occ_code>>itr)&1) == 1) {
         img.at<float>(row, col) = unfit_nums[unfit_nums_itr];
-        // if (fabs(org.at<cv::Vec4f>(row, col)[0] - unfit_nums[unfit_nums_itr]) > 0.001) {
-        //   std::cout << "[" << row << "," << col << "]" 
-        //   << org.at<cv::Vec4f>(row, col)[0] << " " 
-        //   << unfit_nums[unfit_nums_itr] << std::endl;
-        // }
         unfit_nums_itr++;
       }
       itr++;
@@ -28,17 +23,13 @@ int copy_unfit_points(cv::Mat& img, std::vector<float>& unfit_nums,
 }
 
 void calc_fit_nums(cv::Mat& img, const cv::Vec4f& c, int occ_code, int c_idx,
-                   int r_idx, int len_itr, int tile_size, cv::Mat& org) {
+                   int r_idx, int len_itr, int tile_size) {
   int itr = 0;
   for (int j = 0; j < tile_size; j++) {
     for (int i = 0; i < tile_size; i++) {
       if (((occ_code>>itr)&1) == 1) {
         float val = fabs((c[3] + c[1]*j + c[2]*(len_itr*tile_size+i))/c[0]);
         img.at<float>(r_idx*tile_size+j, c_idx*tile_size+i) = val;
-        // if (fabs(org.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0] - val) > 1) {
-        //   std::cout << org.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0] 
-        //   << " " << val << std::endl;
-        // }
       }
       itr++;
     }
@@ -55,7 +46,7 @@ void calc_fit_nums(cv::Mat& img, const cv::Vec4f& c, int occ_code, int c_idx,
 double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
                              std::vector<cv::Vec4f>& coefficients, cv::Mat& occ_mat,
                              std::vector<int>& tile_fit_lengths,
-                             std::vector<float>& unfit_nums, int tile_size, cv::Mat& org) {
+                             std::vector<float>& unfit_nums, int tile_size) {
 
   auto decode_start = std::chrono::high_resolution_clock::now();
 
@@ -84,17 +75,17 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
           exit(0);
         }
         unfit_nums_itr = copy_unfit_points(img, unfit_nums, unfit_nums_itr,
-                                           occ_code, r_idx, c_idx, tile_size, org);
+                                           occ_code, r_idx, c_idx, tile_size);
         unfit_cnt++;
       } else {
         if (len_itr < len) {
-          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size, org);
+          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
           len_itr++;
         } else {
           c = coefficients[fit_itr];
           len_itr = 0;
           len = tile_fit_lengths[fit_itr];
-          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size, org);
+          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
           fit_itr++;
           len_itr++;
         }

@@ -5,6 +5,7 @@
 #include "pcc_module.h"
 #include "encoder.h"
 #include "decoder.h"
+#include "io.h"
 
 int main(int argc, char** argv) { 
   
@@ -104,17 +105,37 @@ int main(int argc, char** argv) {
  
   pcc_res.fit_times->push_back(fit_time);
 
-  cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
-  
-  decoder::single_channel_decode(*r_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                                 *occ_mat, tile_fit_lengths, unfit_nums, tile_size, *f_mat);
+  // what we need to store:
+  // 1. b_mat: binary map for tile type
+  export_b_mat(*b_mat, "b_mat.bin");
+  delete b_mat;
 
-  
-  // psnr = compute_loss_rate<cv::Vec4f>(*(r_mat[j]), t_pcloud, pitch_precision, yaw_precision);
-  // pcc_res.restored_loss_rate->push_back(psnr);
-  // std::cout << "[restore] psnr: " << psnr << std::endl;
+  b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
+  import_b_mat(*b_mat, "b_mat.bin");
+  // 2. planar coefficients
+  // 3. occ_mat: occupation map
+  // 4. unfit_nums: unfitted_nums
+  // 5. tile_fit_lengths
+
+
+  // reconstruct the range image
+  cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
+  // decoding
+  decoder::single_channel_decode(*r_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                                 *occ_mat, tile_fit_lengths, unfit_nums, tile_size);
+
+  psnr = compute_loss_rate(*r_mat, pcloud_data, pitch_precision, yaw_precision);
     
+  std::vector<point_cloud> restored_pcloud;
+  restore_pcloud(*r_mat, pitch_precision, yaw_precision, restored_pcloud);
   
+  cv::Mat* f_mat2 = new cv::Mat(row, col, CV_32FC1, 0.f);
+  pcloud_to_mat<float>(restored_pcloud, *f_mat2, pitch_precision, yaw_precision);
+  
+  psnr = compute_loss_rate(*r_mat, restored_pcloud, pitch_precision, yaw_precision);
+ 
+  // output_cloud(pcloud_data, "org.ply");
+  // output_cloud(restored_pcloud, "restored.ply");
   std::cout << "**********************************************************" << std::endl;
   
   print_pcc_res(pcc_res);

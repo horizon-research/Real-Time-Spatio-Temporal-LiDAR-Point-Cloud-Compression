@@ -160,82 +160,115 @@ output_normalize_cloud(const std::vector<point_cloud>& pcloud, std::string file_
   return {min_x, max_x, min_y, max_y, min_z, max_z};
 }
 
-void export_factor(cv::Mat& mat, const char* file_name, int precision) {
-  std::ofstream outfile;
-  outfile << std::fixed;
-  outfile.open(file_name);
-  for (int i = 0; i < mat.cols; i++) {
-    for (int j = 0; j < mat.rows; j++) {
-      const cv::Vec4f& vec = mat.at<cv::Vec4f>(j, i);
-      outfile << std::setprecision(precision)
-        << vec[0] << ":" << vec[1] <<":"<< vec[2] <<":"<< vec[3] <<  ",";
-    }
-    outfile << std::endl;
-  }
-  outfile.close();
-}
-
-
-void load_trace_data(const std::string& dir_path, std::vector<std::vector<point_cloud>>& frames,
-    const std::string& input_format, int frame_cnt) {
+float neighbor_search(float radius, cv::Mat& img, int row, int col) {
+  float restored_radius = img.at<float>(row, col);
   
-  std::vector<std::string> trace_paths = {};
-  /* iterate through the directory and add file names */
-  for (auto itr : std::experimental::filesystem::directory_iterator(dir_path))
-    trace_paths.push_back(itr.path());
+  for (int i = std::max(0,row-1); i < std::min(img.rows, row+2); i++) {
+    for (int j = std::max(0,col-1); j < std::min(img.cols, col+2); j++) {
+      if (std::abs(restored_radius-radius) > std::abs(img.at<float>(i, j)-radius))
+        restored_radius = img.at<float>(i, j);
+    }
+  }
+  return restored_radius;
+}
 
-  std::sort(trace_paths.begin(), trace_paths.end());
-  // iterate the dataset directory;
-  for ( auto curr_file : trace_paths ) {
-    std::vector<point_cloud> pcloud_data = {};
+float compute_loss_rate(cv::Mat& img, const std::vector<point_cloud>& pcloud,
+                        float pitch_precision, float yaw_precision) {
+  
+  // initialize different error metric;
+  float x_error = 0.0f, y_error = 0.0f, z_error = 0.0f;
+  float error = 0.0f, dist_error = 0.0f;
+  float norm_error = 0.0f, norm_dist_error = 0.0f;
+  float max_radius = 0.0f, min_radius = 0.0f;
+  
+  for (auto point : pcloud) {
+    float x = point.x;
+    float y = point.y;
+    float z = point.z;
 
-    if (input_format.compare("binary") == 0) {
-      // load point cloud data;
-      load_pcloud(curr_file, pcloud_data);
-    } else if (input_format.compare("ascii") == 0) {
-      // load point cloud data;
-      load_pcloud_xyz(curr_file, pcloud_data);
-    } else {
-      std::cout << "[ERROR]: can't read this input. " << std::endl;
-      exit(-1);
+		/* calculate some parameters for spherical coord */
+	  float dist = sqrt(x*x + y*y);
+	  float radius = sqrt(x*x + y*y + z*z);
+	  float pitch = atan2(y, x) * 180.0f / pitch_precision / PI;     
+	  float yaw = atan2(z, dist) * 180.0f / yaw_precision / PI;
+
+    float row_offset = ROW_OFFSET/yaw_precision;
+    float col_offset = COL_OFFSET/pitch_precision;
+    
+    int col = std::min(img.cols-1, std::max(0, (int)(pitch+col_offset)));
+    int row = std::min(img.rows-1, std::max(0, (int)(yaw+row_offset)));
+    
+    // find max and min
+    max_radius = fmax(max_radius, radius);
+    min_radius = fmin(min_radius, radius);
+
+    float restored_radius(0);
+    restored_radius = neighbor_search(radius, img, row, col);
+
+    if (std::isnan(restored_radius) || (restored_radius > 150.f) || restored_radius < 0.1f) {
+      std::cout << "[IGNORE]: " << radius << " vs. "  <<  restored_radius << ". [x,y,z]: " <<  x << ", " << y << ", " << z << std::endl;
+      restored_radius = 0.1f;
     }
 
-    std::cout << "Point cloud size: " << pcloud_data.size() << std::endl;
-    
-    frames.push_back(std::move(pcloud_data));
-    if (frames.size() >= frame_cnt)
-      break;
+    float restored_x, restored_y, restored_z;
+    compute_cartesian_coord(restored_radius, (row+0.5f)-row_offset, (col+0.5f)-col_offset,
+                            restored_x, restored_y, restored_z,
+                            pitch_precision, yaw_precision);
+
+    double x_diff = fabs(x - restored_x);
+    double y_diff = fabs(y - restored_y); 
+    double z_diff = fabs(z - restored_z);
+    double diff = sqrt(x_diff*x_diff + y_diff*y_diff + z_diff*z_diff);
+
+    x_error += x_diff;
+    y_error += y_diff;
+    z_error += z_diff;
+    error += diff;
+
+    norm_error += diff / radius;
+    dist_error += abs(restored_radius - radius);
+    norm_dist_error += abs(restored_radius - radius) / radius;
   }
+
+  if (VERBOSE) {
+    std::cout << "the x-error rate: " << x_error / pcloud.size() << std::endl;
+    std::cout << "the y-error rate: " << y_error / pcloud.size() << std::endl;
+    std::cout << "the z-error rate: " << z_error / pcloud.size() << std::endl;
+    std::cout << "the error rate: " << error / pcloud.size() << std::endl;
+    std::cout << "the normal error rate: " << norm_error / pcloud.size() << std::endl;
+    std::cout << "the distance error rate: " << dist_error / pcloud.size() << std::endl;
+    std::cout << "the normal distance error rate: " << norm_dist_error / pcloud.size() << std::endl;
+  }
+
+  // find the maximum boundary among x, y, z;
+  double bb_width = 2*max_radius;
+  // divide the error by the number of points
+  error = error / pcloud.size();
+
+  // compute peak-signal-to-noise ratio (psnr) 
+  return 10.0*log10((bb_width*bb_width)/(error*error));
 }
 
-void load_trace_calib(const std::string& calib_path,
-    std::vector<std::vector<float>>& moves, int frame_cnt) {
 
-  std::vector<std::string> calib_paths = {};
-  /* iterate through the directory and add file names */
-  for (auto itr : std::experimental::filesystem::directory_iterator(calib_path))
-    calib_paths.push_back(itr.path());
+void restore_pcloud(cv::Mat& img, float pitch_precision, float yaw_precision,
+                    std::vector<point_cloud>& restored_pcloud) {
 
-  std::sort(calib_paths.begin(), calib_paths.end());
+  std::cout << pitch_precision << " : " << yaw_precision << std::endl;
+  for (int row = 0; row < img.rows; row++) {
+    for (int col = 0; col < img.cols; col++) {
+      float radius = img.at<float>(row, col);
+      if (radius <= 0) continue;
+      
+      float pitch = (col + 0.5) * pitch_precision - COL_OFFSET;
+      float yaw = (row + 0.5) * yaw_precision - ROW_OFFSET;
+      // std::cout << yaw << std::endl;
 
-  // iterate the dataset directory;
-  for (auto curr_file : calib_paths) {
-    std::ifstream infile;
-    infile.open(curr_file.c_str());
+      float z = radius*sin(yaw * PI / 180.0f);
+      float dist = radius*cos(yaw * PI / 180.0f);
+      float y = dist*sin(pitch * PI / 180.0f);
+      float x = dist*cos(pitch * PI / 180.0f);
 
-    std::vector<float> vec(25, 0.0f);
-    for (int i = 0; i < vec.size(); i++)
-      infile >> vec[i];
-    
-    infile.close();
-
-    printf("velocity: %f %f %f\nangular speed: %f %f %f\n",
-           vec[8], vec[9], vec[10], vec[20], vec[21], vec[22]);
-
-    moves.push_back({vec[8], vec[9], vec[10], vec[20], vec[21], vec[22]});
-
-    if (moves.size() >= frame_cnt)
-      break;
+      restored_pcloud.push_back(point_cloud(x, y, z, radius));
+    }
   }
 }
-
