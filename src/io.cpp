@@ -21,6 +21,7 @@ void export_b_mat(cv::Mat& b_mat, std::string filename) {
   if (cnt > 0) {
     out_stream.write(&code, sizeof(code));
   }
+  out_stream.close();
 }
 
 void import_b_mat(cv::Mat& b_mat, std::string filename) {
@@ -44,4 +45,32 @@ void import_b_mat(cv::Mat& b_mat, std::string filename) {
       cnt++;
     }
   }
+  in_stream.close();
 }
+
+void export_coefficients(std::vector<cv::Vec4f>& coefficients,
+                         std::string filename) {
+  std::ofstream out_stream(filename, std::ofstream::binary);
+
+  for (auto c : coefficients) {
+    out_stream.write(reinterpret_cast<const char*>(&c[0]), sizeof(c[0]));
+    out_stream.write(reinterpret_cast<const char*>(&c[1]), sizeof(c[1]));
+    out_stream.write(reinterpret_cast<const char*>(&c[2]), sizeof(c[2]));
+    out_stream.write(reinterpret_cast<const char*>(&c[3]), sizeof(c[3]));
+  }
+
+  out_stream.close();
+}
+
+void import_coefficients(std::vector<cv::Vec4f>& coefficients,
+                         std::string filename) {
+  std::ifstream in_stream(filename, std::ifstream::binary);
+  float c[4];
+  while (in_stream.read(reinterpret_cast<char*>(c), sizeof(float)*4)) {
+    coefficients.push_back(cv::Vec4f(c[0], c[1], c[2], c[3]));
+  }
+
+  in_stream.close();
+}
+
+

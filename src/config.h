@@ -11,10 +11,6 @@
 #define PI 3.14159266
 #define VERBOSE true
 
-
-#include  "opencv2/core/types_c.h"
-#define CV_32FC20 CV_32FC(20)
-
 /* some configurations */
 // #define PERFORMANCE
 #define FITTING

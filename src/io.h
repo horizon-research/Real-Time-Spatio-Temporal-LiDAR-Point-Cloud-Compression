@@ -19,4 +19,11 @@ void export_b_mat(cv::Mat& b_mat, std::string filename);
 
 void import_b_mat(cv::Mat& b_mat, std::string filename);
 
+
+void export_coefficients(std::vector<cv::Vec4f>& coefficients,
+                         std::string filename);
+
+void import_coefficients(std::vector<cv::Vec4f>& coefficients,
+                         std::string filename);
+
 #endif

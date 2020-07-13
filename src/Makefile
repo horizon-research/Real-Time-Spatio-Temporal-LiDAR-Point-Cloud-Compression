@@ -17,9 +17,9 @@ LIBS=-lstdc++fs `pkg-config opencv4 --cflags --libs` \
 		 -L. -Wl,-rpath=.
 
 # my PCC library
-DEPS=utils.cpp encoder.cpp pcc_module.cpp decoder.cpp
+DEPS=utils.cpp encoder.cpp pcc_module.cpp decoder.cpp io.cpp
 
-OBJS=utils.o encoder.o decoder.o pcc_module.o 
+OBJS=utils.o encoder.o decoder.o pcc_module.o io.cpp
 		 # euclidean.o compensation.o pcc_module.o multi_channel.o
 
 

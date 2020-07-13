@@ -113,8 +113,14 @@ int main(int argc, char** argv) {
   b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   import_b_mat(*b_mat, "b_mat.bin");
   // 2. planar coefficients
+  export_coefficients(coefficients, "coefficients.bin");
+  coefficients.clear();
+  
+  import_coefficients(coefficients, "coefficients.bin");
   // 3. occ_mat: occupation map
+  
   // 4. unfit_nums: unfitted_nums
+  
   // 5. tile_fit_lengths
 
 
