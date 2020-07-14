@@ -1,8 +1,6 @@
-/*
- * This is an example of 3d lidar compression.
+/* this is an example of 3d lidar compression.
  * */
 
-#include <stdlib.h>
 #include "pcc_module.h"
 #include "encoder.h"
 #include "decoder.h"
@@ -10,7 +8,7 @@
 
 int main(int argc, char** argv) { 
   
-  std::string file_path, out_file;
+  std::string file_path;
   std::string input_format("binary");
   float pitch_precision, yaw_precision, threshold;
   int tile_size;
@@ -21,7 +19,6 @@ int main(int argc, char** argv) {
   opts.add_options()
     ("help,h", "Print help messages")
     ("file", po::value<std::string>(&file_path)->required(), "raw point cloud data path")
-    ("out", po::value<std::string>(&out_file)->required(), "compressed data filename")
     ("pitch,p", po::value<float>(&pitch_precision)->required(), "pitch precision")
     ("yaw,y", po::value<float>(&yaw_precision)->required(), "yaw precision")
     ("threshold,t", po::value<float>(&threshold)->required(), "threshold value for fitting")
@@ -104,8 +101,7 @@ int main(int argc, char** argv) {
   fit_time = encoder::single_channel_encode(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
                                             *occ_mat, unfit_nums, tile_fit_lengths,
                                             threshold, tile_size);
-  delete f_mat;
-
+ 
   pcc_res.fit_times->push_back(fit_time);
 
   // what we need to store:
@@ -113,6 +109,7 @@ int main(int argc, char** argv) {
   export_b_mat(*b_mat, "b_mat.bin");
   delete b_mat;
 
+  b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   // 2. planar coefficients
   export_coefficients(coefficients, "coefficients.bin");
   coefficients.clear();
@@ -121,6 +118,7 @@ int main(int argc, char** argv) {
   export_occ_mat(*occ_mat, "occ_mat.bin");
   delete occ_mat;
 
+  occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   // 4. unfit_nums: unfitted_nums
   export_unfit_nums(unfit_nums, "unfit_nums.bin");
   unfit_nums.clear();
@@ -129,16 +127,41 @@ int main(int argc, char** argv) {
   export_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths.bin");
   tile_fit_lengths.clear();
   
-  // 6. make a tar.gz file
-  std::string cmd;
-  cmd = "tar -czvf" + out_file + " b_mat.bin" + " coefficients.bin"
-      + " occ_mat.bin" + " unfit_nums.bin" + " tile_fit_lengths.bin";
 
-  if (system(cmd.c_str()) == -1) {
-    std::cout << "[ERROR]: 'tar' command executed failed." << std::endl;
-    exit(-1);
-  }
+  system("tar -cvzf frame.tar.gz *.bin");
+  system("tar -xvzf frame.tar.gz");
+
+  import_b_mat(*b_mat, "b_mat.bin");
+  import_coefficients(coefficients, "coefficients.bin");
+  import_occ_mat(*occ_mat, "occ_mat.bin");
+  import_unfit_nums(unfit_nums, "unfit_nums.bin");
+  import_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths.bin");
+  // reconstruct the range image
+  cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
+  // decoding
+  decoder::single_channel_decode(*r_mat, *b_mat, mat_div_tile_sizes, coefficients, 
+                                 *occ_mat, tile_fit_lengths, unfit_nums, tile_size);
+
+  psnr = compute_loss_rate(*r_mat, pcloud_data, pitch_precision, yaw_precision);
+    
+  std::vector<point_cloud> restored_pcloud;
+  restore_pcloud(*r_mat, pitch_precision, yaw_precision, restored_pcloud);
   
+  cv::Mat* f_mat2 = new cv::Mat(row, col, CV_32FC1, 0.f);
+  pcloud_to_mat<float>(restored_pcloud, *f_mat2, pitch_precision, yaw_precision);
+  
+  psnr = compute_loss_rate(*r_mat, restored_pcloud, pitch_precision, yaw_precision);
+ 
+  // output_cloud(pcloud_data, "org.ply");
+  // output_cloud(restored_pcloud, "restored.ply");
+  std::cout << "**********************************************************" << std::endl;
+  
+  print_pcc_res(pcc_res);
+  
+  delete f_mat;
+  delete r_mat;
+  delete occ_mat;
+  delete f_mat2;
   return 0;
 }
 

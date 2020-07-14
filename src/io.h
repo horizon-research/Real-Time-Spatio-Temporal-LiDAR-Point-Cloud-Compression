@@ -29,6 +29,14 @@ void export_occ_mat(cv::Mat& occ_mat, std::string filename);
 
 void import_occ_mat(cv::Mat& occ_mat, std::string filename);
 
+void export_unfit_nums(std::vector<float>& data, std::string filename);
+
+void import_unfit_nums(std::vector<float>& data, std::string filename);
+
+void export_tile_fit_lengths(std::vector<int>& data, std::string filename);
+
+void import_tile_fit_lengths(std::vector<int>& data, std::string filename);
+
 #include "io_impl.h"
 
 #endif

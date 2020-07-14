@@ -77,10 +77,10 @@ void export_occ_mat(cv::Mat& occ_mat, std::string filename) {
   // open a file
   std::ofstream out_stream(filename, std::ofstream::binary);
 
-  int code;
+  unsigned short code;
   for (int row = 0; row < occ_mat.rows; row++) {
     for (int col = 0; col < occ_mat.cols; col++) {
-      code = occ_mat.at<int>(row, col);
+      code = (unsigned short)occ_mat.at<int>(row, col);
       out_stream.write(reinterpret_cast<const char*>(&code), sizeof(code));
     }
   }
@@ -91,7 +91,7 @@ void import_occ_mat(cv::Mat& occ_mat, std::string filename) {
   // open a file
   std::ifstream in_stream(filename, std::ifstream::binary);
 
-  int code = 0;
+  unsigned short code = 0;
   for (int row = 0; row < occ_mat.rows; row++) {
     for (int col = 0; col < occ_mat.cols; col++) {
       in_stream.read(reinterpret_cast<char*>(&code), sizeof(code));
@@ -101,3 +101,41 @@ void import_occ_mat(cv::Mat& occ_mat, std::string filename) {
   in_stream.close();
 }
 
+void export_unfit_nums(std::vector<float>& data, std::string filename) {
+  std::ofstream out_stream(filename, std::ofstream::binary);
+
+  for (auto d : data) {
+    unsigned short quantized_d = (unsigned short) (d*256);
+    out_stream.write(reinterpret_cast<const char*>(&quantized_d), sizeof(quantized_d));
+  }
+  out_stream.close();
+}
+
+void import_unfit_nums(std::vector<float>& data, std::string filename) {
+  std::ifstream in_stream(filename, std::ifstream::binary);
+  unsigned short quantized_d;
+  while (in_stream.read(reinterpret_cast<char*>(&quantized_d), sizeof(quantized_d))) {
+    float d = ((float) quantized_d) / 256.0f;
+    data.push_back(d);
+  }
+  in_stream.close();
+}
+
+void export_tile_fit_lengths(std::vector<int>& data, std::string filename) {
+  std::ofstream out_stream(filename, std::ofstream::binary);
+
+  for (auto d : data) {
+    unsigned short quantized_d = (unsigned short) (d);
+    out_stream.write(reinterpret_cast<const char*>(&quantized_d), sizeof(quantized_d));
+  }
+  out_stream.close();
+}
+
+void import_tile_fit_lengths(std::vector<int>& data, std::string filename) {
+  std::ifstream in_stream(filename, std::ifstream::binary);
+  unsigned short quantized_d;
+  while (in_stream.read(reinterpret_cast<char*>(&quantized_d), sizeof(quantized_d))) {
+    data.push_back(quantized_d);
+  }
+  in_stream.close();
+}
