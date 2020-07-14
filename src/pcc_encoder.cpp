@@ -88,9 +88,6 @@ int main(int argc, char** argv) {
   // update the info;
   pcc_res.loss_rate->push_back(psnr);
   
-  std::cout << "Loss rate [PSNR]: " << psnr << " Compression rate: "
-            << pcc_res.compression_rate->back() << " bpp." << std::endl;
-  
   /*******************************************************************/
   // fitting range map
   int mat_div_tile_sizes[] = {row/tile_size, col/tile_size};
