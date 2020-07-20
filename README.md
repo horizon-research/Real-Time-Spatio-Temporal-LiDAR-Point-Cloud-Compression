@@ -30,6 +30,8 @@ You will see three different bianry:
 
 ## How to use
 
+### Single frame compression and decompression
+
 We provide a simple data sample in our `data` directory. To encode this point cloud:
 ```
  $ ./pcc_encoder --file ../data/0000000000.bin -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frame.tar.gz
@@ -47,6 +49,25 @@ To test the end-to-end compression, use:
  $  ./pcc_test --file ../data/0000000000.bin -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 
 ```
 This will give many detailed information about compression time, accuracy,etc.
+
+### Multi-frame compression and decompression
+
+To compress multiple frame together, we can use:
+```
+ $ ./pcc_stream_encoder  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
+```
+This command will compress 5 point clouds (0000000000.bin-0000000004.bin) from directory ` ../data`. The output result stores in `frames.tar.gz`.
+
+To recover these 5 point clouds, use the command:
+```
+ $ ./pcc_stream_decoder  -p 0.18 -y 0.45 -f binary -l 4 --input frames.tar.gz --output-files 0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
+```
+This will reverse the compression process and generate 5 raw point cloud data.
+
+To test end-to-end compression and decompression:
+```
+ $ ./pcc_stream_test  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
+```
 
 ## Related 
 You can also check out:
