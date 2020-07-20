@@ -35,6 +35,9 @@ pcc_decoder: objs
 pcc_stream_encoder: objs
 	${CC} -o $@ pcc_stream_encoder.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
 
+pcc_stream_decoder: objs
+	${CC} -o $@ pcc_stream_decoder.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
+
 pcc_test: objs
 	${CC} -o $@ pcc_test.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
 
