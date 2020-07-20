@@ -123,6 +123,10 @@ int main(int argc, char** argv) {
             << " plane_offsets: " << plane_offsets.size()
             << " multi_tile_len: " << multi_tile_fit_lengths.size() << std::endl;
 
+  // command for making a tar.gz file
+  std::string cmd = "tar -czvf " + out_file;
+  std::string file_string;
+  
   for (int i = 0; i < pcloud_data_list.size(); i++) {
     auto pcloud_data = pcloud_data_list[i];
     auto f_mat = f_mats[i];
@@ -145,114 +149,62 @@ int main(int argc, char** argv) {
   
     // what we need to store:
     // 1. b_mat: binary map for tile type
-    export_b_mat(*b_mat, "b_mat.bin");
+    export_b_mat(*b_mat, "b_mat"+std::to_string(i)+".bin");
     delete b_mat;
+    file_string +=  " b_mat"+std::to_string(i)+".bin";
   
     // 2. planar coefficients
-    export_coefficients(coefficients, "coefficients.bin");
+    export_coefficients(coefficients, "coefficients"+std::to_string(i)+".bin");
     coefficients.clear();
+    file_string += " coefficients"+std::to_string(i)+".bin";
     
     // 3. occ_mat: occupation map
-    export_occ_mat(*occ_mat, "occ_mat.bin");
-    // delete occ_mat;
+    export_occ_mat(*occ_mat, "occ_mat"+std::to_string(i)+".bin");
+    delete occ_mat;
+    file_string += " occ_mat"+std::to_string(i)+".bin";
   
     // 4. unfit_nums: unfitted_nums
-    export_unfit_nums(unfit_nums, "unfit_nums.bin");
+    export_unfit_nums(unfit_nums, "unfit_nums"+std::to_string(i)+".bin");
     unfit_nums.clear();
-    
-    // 5. tile_fit_lengths
-    export_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths.bin");
-    tile_fit_lengths.clear();
-    
-    // 6. make a tar.gz file
-    std::string cmd = "tar -czvf frame" + std::to_string(i)
-                    + ".tar.gz" + " b_mat.bin" + " coefficients.bin"
-                    + " occ_mat.bin" + " unfit_nums.bin" + " tile_fit_lengths.bin";
-  
-    if (system(cmd.c_str()) == -1) {
-      std::cout << "[ERROR]: 'tar' command compression failed." << std::endl;
-      exit(-1);
-    }
-  }
+    file_string += " unfit_nums"+std::to_string(i)+".bin";
 
-  std::vector<cv::Mat*> r_mats;
-  for (int i = 0; i < pcloud_data_list.size(); i++) {
-    // reconstruct the range image
-    cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
-    r_mats.push_back(r_mat);
+    // 5. tile_fit_lengths
+    export_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths"+std::to_string(i)+".bin");
+    tile_fit_lengths.clear();
+    file_string += " tile_fit_lengths"+std::to_string(i)+".bin";
   }
 
   // 1. multi-planar coefficients
   export_coefficients(multi_coefficients, "multi_coefficients.bin");
   multi_coefficients.clear();
-  import_coefficients(multi_coefficients, "multi_coefficients.bin");
+  file_string += " multi_coefficients.bin";
 
   // 2. export multi-b_mat
   export_b_mat(*multi_mat, "multi_mat.bin");
   delete multi_mat;
-  multi_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
-  import_b_mat(*multi_mat, "multi_mat.bin");
+  file_string += " multi_mat.bin";
 
   // 3. tile_fit_lengths
   export_tile_fit_lengths(multi_tile_fit_lengths, "multi_tile_fit_lengths.bin");
   multi_tile_fit_lengths.clear();
-  import_tile_fit_lengths(multi_tile_fit_lengths, "multi_tile_fit_lengths.bin");
+  file_string += " multi_tile_fit_lengths.bin";
   
   // 4. multi-channel plane offsets
   export_plane_offsets(plane_offsets, "plane_offsets.bin");
   plane_offsets.clear();
-  import_plane_offsets(plane_offsets, "plane_offsets.bin", r_mats.size());
+  file_string += " plane_offsets.bin";
 
-  decoder::multi_channel_decode(r_mats, *multi_mat, mat_div_tile_sizes,
-                                occ_mats, multi_coefficients,
-                                plane_offsets, multi_tile_fit_lengths, 
-                                threshold, tile_size);
+  // 5. make a tar ball
+  cmd += file_string;
+  if (system(cmd.c_str()) == -1) {
+    std::cout << "[ERROR]: 'tar' command compression failed." << std::endl;
+    exit(-1);
+  }
 
-
-  for (int i = 0; i < pcloud_data_list.size(); i++) {
-    
-    std::string cmd = "tar -xzvf frame" + std::to_string(i) + ".tar.gz";
-    if (system(cmd.c_str())) {
-        std::cout << "[ERROR]: 'tar' command decompression failed." << std::endl;
-        exit(-1);
-    
-    }
-
-    auto pcloud_data = pcloud_data_list[i];
-    auto f_mat = f_mats[i];
-    auto r_mat = r_mats[i];
-    
-    cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
-    cv::Mat* occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
-    std::vector<cv::Vec4f> coefficients;
-    std::vector<int> tile_fit_lengths;
-    std::vector<float> unfit_nums;
-
-    import_b_mat(*b_mat, "b_mat.bin");
-    import_coefficients(coefficients, "coefficients.bin");
-    import_occ_mat(*occ_mat, "occ_mat.bin");
-    import_unfit_nums(unfit_nums, "unfit_nums.bin");
-    import_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths.bin");
-    
-    // decoding
-    decoder::single_channel_decode(*r_mat, *b_mat, mat_div_tile_sizes, 
-                                   coefficients, *occ_mat, tile_fit_lengths,
-                                   unfit_nums, tile_size, multi_mat);
-  
-    psnr = compute_loss_rate(*r_mat, pcloud_data, pitch_precision, yaw_precision);
-     
-    std::vector<point_cloud> restored_pcloud;
-    restore_pcloud(*r_mat, pitch_precision, yaw_precision, restored_pcloud);
-    
-    cv::Mat* f_mat2 = new cv::Mat(row, col, CV_32FC1, 0.f);
-    pcloud_to_mat<float>(restored_pcloud, *f_mat2, pitch_precision, yaw_precision);
-    
-    psnr = compute_loss_rate(*r_mat, restored_pcloud, pitch_precision, yaw_precision);
-
-    // output_cloud(pcloud_data, "org.ply");
-    // output_cloud(restored_pcloud, "restored.ply");
-    std::cout << "**********************************************************" << std::endl;
-    
+  std::string rm_files = "rm " + file_string;
+  if (system(rm_files.c_str()) == -1) {
+    std::cout << "[ERROR]: 'rm' command remove file failed." << std::endl;
+    exit(-1);
   }
   return 0;
 }
