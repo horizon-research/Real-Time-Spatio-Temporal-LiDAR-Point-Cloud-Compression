@@ -1,4 +1,4 @@
-all: pcc_encoder pcc_decoder pcc_stream_encoder pcc_test
+all: pcc_encoder pcc_decoder pcc_stream_encoder pcc_stream_decoder pcc_test pcc_stream_test
 
 # C flags
 CC=g++
