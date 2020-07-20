@@ -69,6 +69,18 @@ To test end-to-end compression and decompression:
  $ ./pcc_stream_test  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
 ```
 
+## Citation
+
+If you think this work is useful in your research, please consider cite our paper:
+```
+@article{yu2020pcc,
+  title={Real-Time  Spatio-Temporal  LiDAR  Point  Cloud  Compression},
+  author={Feng, Yu and Liu, Shaoshan and Zhu, Yuhao},
+  journal={2020 IEEE/RSJ International Conference on Intelligent Robots and Systems(IROS)},
+  year={2020}
+}
+```
+
 ## Related 
 You can also check out:
   - [PCL library](http://docs.pointclouds.org/trunk/index.html): a open-sourced point cloud library.
