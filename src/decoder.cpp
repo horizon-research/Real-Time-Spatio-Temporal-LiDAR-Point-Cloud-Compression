@@ -104,4 +104,87 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
   return decode_time;
 }
 
+void calc_fit_nums_w_offset(cv::Mat& img, const cv::Vec4f& c, int occ_code, int c_idx,
+                            int r_idx, int len_itr, int tile_size, float offset) {
+  int itr = 0;
+  for (int j = 0; j < tile_size; j++) {
+    for (int i = 0; i < tile_size; i++) {
+      if (((occ_code>>itr)&1) == 1) {
+        float val = fabs((offset + c[1]*j + c[2]*(len_itr*tile_size+i))/c[0]);
+        if (fabs(val - img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0]) > 10.0f) {
+          std::cout << "ERROR: org. " << img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0]
+                    << " actual. " << val << std::endl;
+          std::cout << "ERROR: " << c[3] 
+                    << " actual. " << offset << std::endl;
+          exit(0);
+        }
+        img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0] = val;
+      }
+      itr++;
+    }
+  }
+  return;
+}
+
+double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat, 
+                            const int* idx_sizes,
+                            std::vector<cv::Mat*>& occ_mats,
+                            std::vector<cv::Vec4f>& coefficients,
+                            std::vector<std::vector<float>>& plane_offsets,
+                            std::vector<int>& tile_fit_lengths, 
+                            const float threshold, const int tile_size) {
+ 
+  int tt2 = tile_size*tile_size;
+ 
+  int unfit_cnt = 0;
+  int fit_cnt = 0;
+
+  for (int ch = 0; ch < imgs.size(); ch++) {
+    std::cout << "[CHANNEL] " << ch << std::endl;
+    int fit_itr = 0;
+    for (int r_idx = 0; r_idx < idx_sizes[0]; r_idx++) {
+      int len_itr = 0;
+      int len = 0;
+      cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
+      std::vector<float> offsets;
+  
+      for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
+        // std::cout << "tile: " << r_idx << ", " << c_idx << std::endl;
+        int tile_status = b_mat.at<int>(r_idx, c_idx);
+        int occ_code = occ_mats[ch]->at<int>(r_idx, c_idx);
+
+        if (tile_status == 0) {
+          if (len_itr < len) {
+            std::cout << "[ERROR]: should encode unfit nums right now!" << std::endl;
+            std::cout << "[INFO]: r_idx " << r_idx << " c_idx " << c_idx << " len_itr " 
+                      << len_itr << " len " << len << std::endl;
+            exit(0);
+          }
+          unfit_cnt++;
+        } else {
+          if (len_itr < len) {
+            calc_fit_nums_w_offset(*(imgs[ch]), c, occ_code, c_idx, r_idx,
+                                   len_itr, tile_size, offsets[ch]);
+            len_itr++;
+          } else {
+            c = coefficients[fit_itr];
+            offsets = plane_offsets[fit_itr];
+            len_itr = 0;
+            len = tile_fit_lengths[fit_itr];
+            calc_fit_nums_w_offset(*(imgs[ch]), c, occ_code, c_idx, r_idx,
+                                   len_itr, tile_size, offsets[ch]);
+            fit_itr++;
+            len_itr++;
+          }
+          fit_cnt++;
+        }
+      }
+    }
+  }
+
+  std::cout << "Multi with fitting_cnts: " << fit_cnt
+            << " with unfitting_cnts: " << unfit_cnt << std::endl;
+
+}
+
 }

@@ -127,7 +127,6 @@ cv::Vec4f plane_fitting(std::vector<std::pair<float, float>>& idx_vals,
   return cv::Vec4f(factors);
 }
 
-
 bool check_mat(cv::Mat& img, const cv::Vec4f& c, float threshold,
                int c_idx, int r_idx, int len, int height) {
   if (c[0] == 0.f && c[1] == 0.f && c[2] == 0.f)
@@ -338,15 +337,12 @@ void encode_occupation_mat(cv::Mat& img, cv::Mat& occ_mat, int tile_size,
  * NOTE: img size is [tile_size] larger than b_mat
  * */
 double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
-                             std::vector<cv::Vec4f>& coefficients, cv::Mat& occ_mat,
+                             std::vector<cv::Vec4f>& coefficients,
                              std::vector<float>& unfit_nums,
                              std::vector<int>& tile_fit_lengths, 
                              const float threshold, const int tile_size) {
 
   auto fit_start = std::chrono::high_resolution_clock::now(); 
-
-  // encode the occupatjon map
-  encode_occupation_mat(img, occ_mat, tile_size, idx_sizes); 
   
   int fit_cnt = 0, unfit_cnt = 0;
   int tt2 = tile_size*tile_size;
@@ -416,5 +412,194 @@ double single_channel_encode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
             << " with unfitting_cnts: " << unfit_cnt << std::endl;
   return fit_time;
 }
+
+bool test_tile(cv::Mat& img, const cv::Vec4f& c, float threshold,
+               int c_idx, int r_idx, int len, int height,
+               std::vector<float>& offsets) {
+
+  if (c[0] == 0.f && c[1] == 0.f && c[2] == 0.f)
+    return false;
+
+  int cnt = 0;
+  float sum = 0;
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < len; i++) {
+      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
+      float actual_value = vec[0];
+      if (actual_value > 0) {
+        cnt++;
+        sum += c[0]*vec[0] + c[1]*j + c[2]*i;
+      }
+    }
+  }
+  float offset = (cnt == 0) ? 0 : sum/cnt;
+  
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < len; i++) {
+      auto vec = img.at<cv::Vec4f>(r_idx+j, c_idx+i);
+      float actual_value = vec[0];
+      if (actual_value > 0) {
+        float val = fabs(-offset/(c[0]*vec[0] + c[1]*j + c[2]*i))*vec[0];
+        float diff = fabs(val - actual_value);
+        
+        if (diff > threshold) return false;
+      }
+    }
+  }
+  offsets.push_back(-offset);
+  return true;
+}
+
+/*
+ * test and merge the next tiles with previous fitted coefficients 
+ * */
+bool multi_merge(std::vector<cv::Mat*>& imgs, int c_idx, int r_idx,
+                 cv::Vec4f& c, std::vector<float>& offsets,
+                 int len, int height, int scale, float threshold) {
+  // first change the index to mat idx, a.k.a. scalex
+  c_idx *= scale; r_idx *= scale;
+  len *= scale; height *=scale;
+  offsets.clear();
+
+  std::vector<std::pair<float, float>> idx_vals = {};
+  std::vector<float> range_vals = {};
+
+  // find a channel that the numbers of points are enough
+  for (int idx = 0; idx < imgs.size(); idx++) {
+    idx_vals.clear();
+    range_vals.clear();
+    filter_vals(*(imgs[idx]), idx_vals, range_vals,
+                c_idx, r_idx, len, height);
+    if (idx_vals.size() >= 4)
+      break;
+  }
+
+  // 
+  if (idx_vals.size() < 4) {
+    c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+    offsets = std::vector<float>(imgs.size(), 0.f);
+    return false;
+  }
+
+  // plane fitting
+  try {
+    c = plane_fitting(idx_vals, range_vals);
+  } catch (int e) {
+    c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+    offsets = std::vector<float>(imgs.size(), 0.f);
+    return false;
+  }
+
+  for (int idx = 0; idx < imgs.size(); idx++) {
+    if (!test_tile(*(imgs[idx]), c, threshold, c_idx, r_idx,
+                   len, height, offsets)) {
+      c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+      offsets = std::vector<float>(imgs.size(), 0.f);
+      return false;
+    }
+  }
+  return true;
+}
+
+/*
+ * copy a tile into unfitted number vector
+ * */
+void remove_fit_points(cv::Mat& img, int r_idx,int c_idx, int tile_size) {
+
+  for (int row = r_idx*tile_size; row < (r_idx+1)*tile_size; row++) {
+    for (int col = c_idx*tile_size; col < (c_idx+1)*tile_size; col++) {
+      img.at<cv::Vec4f>(row, col) = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+    }
+  }
+  return;
+}
+
+double multi_channel_encode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat, 
+                            const int* idx_sizes,
+                            std::vector<cv::Vec4f>& coefficients,
+                            std::vector<std::vector<float>>& plane_offsets,
+                            std::vector<int>& tile_fit_lengths, 
+                            const float threshold, const int tile_size) {
+
+  auto fit_start = std::chrono::high_resolution_clock::now(); 
+  
+  int fit_cnt = 0, unfit_cnt = 0;
+  int tt2 = tile_size*tile_size;
+  // first assume that every kxk tile can be fitted into a plane;
+  // here both i and j and len are in the unit of kxk tile.
+  // the initial step is to merge kxk tile horizontally.
+  for (int r_idx = 0; r_idx < idx_sizes[0]; r_idx++) {
+    int c_idx = 0;
+    int len = 1;
+    cv::Vec4f prev_c(0.f, 0.f, 0.f, 0.f);
+    cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
+    std::vector<float> offsets;
+    std::vector<float> prev_offsets;
+
+    while (c_idx+len <= idx_sizes[1]) {
+      // when (len==1) save c to prev_c in case len can't be 2
+      if (len == 1) {
+        if (!multi_merge(imgs, c_idx, r_idx, prev_c, prev_offsets,
+                         1, 1, tile_size, threshold)) {
+          // set the b_mat to be 0 indicated the tile cannot be fitted
+          b_mat.at<int>(r_idx, c_idx) = 0;
+          c_idx++;
+          len = 1;
+          continue;
+        } else {
+          fit_cnt++;
+          // tile can be fitted
+          b_mat.at<int>(r_idx, c_idx) = 1;
+        }
+      }
+
+      if (multi_merge(imgs, c_idx, r_idx, c, offsets,
+                      len+1, 1, tile_size, threshold)) {
+        // if len+c_idx already greater than the entire column size
+        if (len+c_idx >= idx_sizes[1]) {
+          coefficients.push_back(cv::Vec4f(c));
+          plane_offsets.push_back(std::vector<float>(offsets));
+          tile_fit_lengths.push_back(std::min(len+1, idx_sizes[1]-c_idx));
+          b_mat.at<int>(r_idx, idx_sizes[1]-1) = 1;
+          break;
+        } else {
+          prev_c = cv::Vec4f(c);
+          prev_offsets = std::vector<float>(offsets);
+          b_mat.at<int>(r_idx, c_idx+len) = 1;
+        }
+        len++;
+        fit_cnt++;
+      } else {
+        coefficients.push_back(cv::Vec4f(prev_c));
+        plane_offsets.push_back(std::vector<float>(prev_offsets));
+        tile_fit_lengths.push_back(len);
+        c_idx = c_idx+len;
+        len = 1;
+        prev_c = cv::Vec4f(0.f, 0.f, 0.f, 0.f);
+        if (len+c_idx >= idx_sizes[1]) {
+          break;
+        }
+      }
+    }
+    // remove all the fitted numbers
+    for (int ch = 0; ch < imgs.size(); ch++) {
+      for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
+        if (b_mat.at<int>(r_idx, c_idx) == 1) {
+          // remove_fit_points(*(imgs[ch]), r_idx, c_idx, tile_size);
+        }
+      }
+    }
+  }
+
+  auto fit_end = std::chrono::high_resolution_clock::now();
+  double fit_time = std::chrono::duration_cast<std::chrono::nanoseconds>(fit_end-fit_start).count();  
+  fit_time *= 1e-9;
+
+  std::cout << "Multi with fitting_cnts: " << fit_cnt
+            << " with unfitting_cnts: " << unfit_cnt << std::endl;
+  
+  return fit_time;
+}
+
 
 }

@@ -97,9 +97,12 @@ int main(int argc, char** argv) {
 
   cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   cv::Mat* occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
-  
+ 
+  // encode the occupatjon map  
+  encoder::encode_occupation_mat(*f_mat, *occ_mat, tile_size, mat_div_tile_sizes);
+
   fit_time = encoder::single_channel_encode(*f_mat, *b_mat, mat_div_tile_sizes, coefficients, 
-                                            *occ_mat, unfit_nums, tile_fit_lengths,
+                                            unfit_nums, tile_fit_lengths,
                                             threshold, tile_size);
   delete f_mat;
 

@@ -1,4 +1,4 @@
-all: pcc_encoder pcc_decoder pcc_test
+all: pcc_encoder pcc_decoder pcc_stream_encoder pcc_test
 
 # C flags
 CC=g++
@@ -31,6 +31,9 @@ pcc_encoder: objs
 
 pcc_decoder: objs
 	${CC} -o $@ pcc_decoder.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
+
+pcc_stream_encoder: objs
+	${CC} -o $@ pcc_stream_encoder.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
 
 pcc_test: objs
 	${CC} -o $@ pcc_test.cpp ${OBJS} ${LIBS} ${CXXFLAGS} ${INCLUDE}
