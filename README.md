@@ -74,7 +74,7 @@ To test end-to-end compression and decompression:
 If you think this work is useful in your research, please consider cite our paper:
 ```
 @article{yu2020pcc,
-  title={Real-Time  Spatio-Temporal  LiDAR  Point  Cloud  Compression},
+  title={Real-Time Spatio-Temporal LiDAR Point Cloud Compression},
   author={Feng, Yu and Liu, Shaoshan and Zhu, Yuhao},
   journal={2020 IEEE/RSJ International Conference on Intelligent Robots and Systems(IROS)},
   year={2020}
