@@ -37,6 +37,13 @@ void export_tile_fit_lengths(std::vector<int>& data, std::string filename);
 
 void import_tile_fit_lengths(std::vector<int>& data, std::string filename);
 
+
+void export_plane_offsets(std::vector<std::vector<float>>& data,
+                          std::string filename);
+
+void import_plane_offsets(std::vector<std::vector<float>>& data,
+                          std::string filename, int size);
+
 #include "io_impl.h"
 
 #endif

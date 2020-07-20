@@ -139,3 +139,29 @@ void import_tile_fit_lengths(std::vector<int>& data, std::string filename) {
   }
   in_stream.close();
 }
+
+void export_plane_offsets(std::vector<std::vector<float>>& data, std::string filename) {
+  std::ofstream out_stream(filename, std::ofstream::binary);
+
+  for (auto vec : data) {
+    for (auto d : vec) {
+      out_stream.write(reinterpret_cast<const char*>(&d), sizeof(d));
+    }
+  }
+  out_stream.close();
+}
+
+void import_plane_offsets(std::vector<std::vector<float>>& data,
+                          std::string filename, int size) {
+  std::ifstream in_stream(filename, std::ifstream::binary);
+  std::vector<float> vec;
+  float d;
+  while (in_stream.read(reinterpret_cast<char*>(&d), sizeof(d))) {
+    vec.push_back(d);
+    if (vec.size() == size) {
+      data.push_back(std::vector<float>(vec));
+      vec.clear();
+    }
+  }
+  in_stream.close();
+}

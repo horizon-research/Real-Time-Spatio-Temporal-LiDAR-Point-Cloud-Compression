@@ -182,16 +182,26 @@ int main(int argc, char** argv) {
     r_mats.push_back(r_mat);
   }
 
-  // multi-planar coefficients
+  // 1. multi-planar coefficients
   export_coefficients(multi_coefficients, "multi_coefficients.bin");
   multi_coefficients.clear();
   import_coefficients(multi_coefficients, "multi_coefficients.bin");
 
-  // export multi-b_mat
+  // 2. export multi-b_mat
   export_b_mat(*multi_mat, "multi_mat.bin");
   delete multi_mat;
   multi_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   import_b_mat(*multi_mat, "multi_mat.bin");
+
+  // 3. tile_fit_lengths
+  export_tile_fit_lengths(multi_tile_fit_lengths, "multi_tile_fit_lengths.bin");
+  multi_tile_fit_lengths.clear();
+  import_tile_fit_lengths(multi_tile_fit_lengths, "multi_tile_fit_lengths.bin");
+  
+  // 4. multi-channel plane offsets
+  export_plane_offsets(plane_offsets, "plane_offsets.bin");
+  plane_offsets.clear();
+  import_plane_offsets(plane_offsets, "plane_offsets.bin", r_mats.size());
 
   decoder::multi_channel_decode(r_mats, *multi_mat, mat_div_tile_sizes,
                                 occ_mats, multi_coefficients,
