@@ -4,10 +4,11 @@ Point Cloud Compression (PCC) is a collection of different point cloud compressi
 
 ## what is this?
 
-This repository is a end-to-end point cloud compression algorithms. The technique leverages the temporal and spatial characterizations in point cloud.
+This repository is an end-to-end point cloud compression algorithms. The technique leverages the temporal and spatial characterizations in point cloud.
 
 In reality, most of objects in the real world are constructed based on certain regular shapes. It is uncommon that we cannot express those shapes in mathematically expression. Therefore, we leverage the mathematical expression to fitting a surface to a given point cloud and encode the coefficients.
 
+For more details, please check out our paper: [Real-Time Spatio-Temporal LiDAR Point Cloud Compression]()
 
 Dependancies:
 * OpenCV 4
@@ -64,7 +65,7 @@ To recover these 5 point clouds, use the command:
 ```
 This will reverse the compression process and generate 5 raw point cloud data.
 
-To test end-to-end compression and decompression:
+To test the end-to-end compression and decompression:
 ```
  $ ./pcc_stream_test  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
 ```
@@ -81,7 +82,10 @@ If you think this work is useful in your research, please consider cite our pape
 }
 ```
 
-## Related 
+## Related
+
+For more experimental data, please check out raw data from [KITTI](http://www.cvlibs.net/datasets/kitti/).
+
 You can also check out:
   - [PCL library](http://docs.pointclouds.org/trunk/index.html): a open-sourced point cloud library.
   - [Alglib](https://www.alglib.net/): a *semi*-open-sourced algibra library.
