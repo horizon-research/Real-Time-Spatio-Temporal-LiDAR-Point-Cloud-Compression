@@ -29,7 +29,8 @@ void calc_fit_nums(cv::Mat& img, const cv::Vec4f& c, int occ_code, int c_idx,
     for (int i = 0; i < tile_size; i++) {
       if (((occ_code>>itr)&1) == 1) {
         float val = fabs((c[3] + c[1]*j + c[2]*(len_itr*tile_size+i))/c[0]);
-        img.at<float>(r_idx*tile_size+j, c_idx*tile_size+i) = val;
+        if (!std::isnan(val))
+          img.at<float>(r_idx*tile_size+j, c_idx*tile_size+i) = val;
       }
       itr++;
     }
@@ -46,7 +47,8 @@ void calc_fit_nums(cv::Mat& img, const cv::Vec4f& c, int occ_code, int c_idx,
 double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
                              std::vector<cv::Vec4f>& coefficients, cv::Mat& occ_mat,
                              std::vector<int>& tile_fit_lengths,
-                             std::vector<float>& unfit_nums, int tile_size) {
+                             std::vector<float>& unfit_nums, int tile_size,
+                             cv::Mat* multi_mat = nullptr) {
 
   auto decode_start = std::chrono::high_resolution_clock::now();
 
@@ -79,13 +81,18 @@ double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
         unfit_cnt++;
       } else {
         if (len_itr < len) {
-          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
+          if (multi_mat == nullptr || multi_mat->at<int>(r_idx, c_idx) == 0)
+            calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
+          
           len_itr++;
         } else {
           c = coefficients[fit_itr];
           len_itr = 0;
           len = tile_fit_lengths[fit_itr];
-          calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
+
+          if (multi_mat == nullptr || multi_mat->at<int>(r_idx, c_idx) == 0)
+            calc_fit_nums(img, c, occ_code, c_idx, r_idx, len_itr, tile_size);
+          
           fit_itr++;
           len_itr++;
         }
@@ -111,14 +118,7 @@ void calc_fit_nums_w_offset(cv::Mat& img, const cv::Vec4f& c, int occ_code, int 
     for (int i = 0; i < tile_size; i++) {
       if (((occ_code>>itr)&1) == 1) {
         float val = fabs((offset + c[1]*j + c[2]*(len_itr*tile_size+i))/c[0]);
-        if (fabs(val - img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0]) > 10.0f) {
-          std::cout << "ERROR: org. " << img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0]
-                    << " actual. " << val << std::endl;
-          std::cout << "ERROR: " << c[3] 
-                    << " actual. " << offset << std::endl;
-          exit(0);
-        }
-        img.at<cv::Vec4f>(r_idx*tile_size+j, c_idx*tile_size+i)[0] = val;
+        img.at<float>(r_idx*tile_size+j, c_idx*tile_size+i) = val;
       }
       itr++;
     }

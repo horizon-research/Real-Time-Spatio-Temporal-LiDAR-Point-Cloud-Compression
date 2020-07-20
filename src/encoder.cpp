@@ -585,7 +585,7 @@ double multi_channel_encode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat,
     for (int ch = 0; ch < imgs.size(); ch++) {
       for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
         if (b_mat.at<int>(r_idx, c_idx) == 1) {
-          // remove_fit_points(*(imgs[ch]), r_idx, c_idx, tile_size);
+          remove_fit_points(*(imgs[ch]), r_idx, c_idx, tile_size);
         }
       }
     }

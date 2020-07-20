@@ -14,7 +14,8 @@ namespace decoder
 double single_channel_decode(cv::Mat& img, cv::Mat& b_mat, const int* idx_sizes,
                              std::vector<cv::Vec4f>& coefficients, cv::Mat& occ_mat,
                              std::vector<int>& tile_fit_lengths,
-                             std::vector<float>& unfit_nums, int tile_size);
+                             std::vector<float>& unfit_nums, int tile_size,
+                             cv::Mat* multi_mat = nullptr);
 
 double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat, 
                             const int* idx_sizes,
