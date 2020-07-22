@@ -11,7 +11,7 @@ In reality, most of objects in the real world are constructed based on certain r
 For more details, please check out our paper: [Real-Time Spatio-Temporal LiDAR Point Cloud Compression]()
 
 Dependancies:
-* OpenCV 4
+* OpenCV4
 * Boost Library
 
 We only test our code in **Ubuntu 18.04**.
@@ -69,6 +69,18 @@ To test the end-to-end compression and decompression:
 ```
  $ ./pcc_stream_test  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
 ```
+
+### flag meanings
+
+- p: horizontal degree granularity. `0.18` stands for 0.18 degree.
+- y: vertical degree granularity. `0.45` stands for 0.45 degree.
+- f: is the data format.
+- l: tile dimension, `4` stands for 4x4.
+- t: error threshold. `0.5` stands for when fitting the point clouds, the error between fitted value and original one is below 0.5.
+
+### Note
+
+The compression rate from this implementation will be lower than the number from the original paper, because we use more compact bit representation for encoded data, in this repo implementation, the data representation is looser, this implementation use the common c++ data types like CHAR, INT, FLOAT, SHORT, etc. Therefore, the compression rate will decrease in some extend.
 
 ## Citation
 
