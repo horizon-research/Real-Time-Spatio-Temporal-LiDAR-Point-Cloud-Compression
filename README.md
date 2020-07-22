@@ -70,7 +70,7 @@ To test the end-to-end compression and decompression:
  $ ./pcc_stream_test  -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frames.tar.gz --input-path ../data --input-files  0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
 ```
 
-### flag meanings
+### Common flag meanings
 
 - p: horizontal degree granularity. `0.18` stands for 0.18 degree.
 - y: vertical degree granularity. `0.45` stands for 0.45 degree.
