@@ -74,8 +74,8 @@ To test the end-to-end compression and decompression:
 
 - p: horizontal degree granularity. `0.18` stands for 0.18 degree.
 - y: vertical degree granularity. `0.45` stands for 0.45 degree.
-- f: is the data format.
-- l: tile dimension, `4` stands for 4x4.
+- f: is the data format, typically the data format is binary.
+- l: tile dimension, `4` stands for 4x4 tile dimension.
 - t: error threshold. `0.5` stands for when fitting the point clouds, the error between fitted value and original one is below 0.5.
 
 ### Note
