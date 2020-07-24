@@ -98,7 +98,7 @@ If you think this work is useful in your research, please consider cite our pape
 
 ## Related
 
-For more experimental data, please check out raw data from [KITTI](http://www.cvlibs.net/datasets/kitti/). You can directly use the Velodyne data directly, just need to specify the data path and input data names.
+For more experimental data, please check out raw data from [KITTI](http://www.cvlibs.net/datasets/kitti/). You can directly use the Velodyne data directly, just need to specify the data path and input data names during encoding and decoding.
 
 You can also check out:
   - [PCL library](http://docs.pointclouds.org/trunk/index.html): a open-sourced point cloud library.
