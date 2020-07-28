@@ -23,10 +23,15 @@ To compile the entire repository, go to the `src` directory, use `Makefile` to c
  $ cd src; make
 ```
 
+**Note**: in `Makefile`, we use `OpenCV4`, but you can change it to different version if necessary.
+
 You will see three different bianry:
 * `pcc_encoder`: an encoder to encode one point cloud frame.
 * `pcc_decoder`: an decoder to decode one point cloud frame.
-* `pc_test`: this is an end-to-end test suite.
+* `pcc_test`: this is an end-to-end test suite.
+* `pcc_stream_encoder`: an encoder to encode a stream of multiple point cloud frames.
+* `pcc_stream_decoder`: an decoder to decode a stream of multiple point cloud frames.
+* `pcc_stream_test` : this is an end-to-end test for streaming compression.
 
 
 ## How to use
@@ -61,9 +66,9 @@ This command will compress 5 point clouds (0000000000.bin-0000000004.bin) from d
 
 To recover these 5 point clouds, use the command:
 ```
- $ ./pcc_stream_decoder  -p 0.18 -y 0.45 -f binary -l 4 --input frames.tar.gz --output-files 0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
+ $ ./pcc_stream_decoder  -p 0.18 -y 0.45 -f binary -l 4 --input frames.tar.gz
 ```
-This will reverse the compression process and generate 5 raw point cloud data.
+This will reverse the compression process and generate 5 raw point cloud data. `frames.tar.gz` can automatically store the ortiginal filenames.
 
 To test the end-to-end compression and decompression:
 ```
