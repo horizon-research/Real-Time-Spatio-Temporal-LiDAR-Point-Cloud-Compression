@@ -2,7 +2,7 @@
 
 Point Cloud Compression (PCC) is a collection of different point cloud compression methods along with varying applcation usages.
 
-## what is this?
+## What is this?
 
 This repository is an end-to-end point cloud compression algorithms. The technique leverages the temporal and spatial characterizations in point cloud.
 
@@ -74,13 +74,15 @@ To test the end-to-end compression and decompression:
 
 - p: horizontal degree granularity. `0.18` stands for 0.18 degree.
 - y: vertical degree granularity. `0.45` stands for 0.45 degree.
-- f: is the data format.
-- l: tile dimension, `4` stands for 4x4.
+- f: is the data format, typically the data format is binary.
+- l: tile dimension, `4` stands for 4x4 tile dimension.
 - t: error threshold. `0.5` stands for when fitting the point clouds, the error between fitted value and original one is below 0.5.
 
 ### Note
 
-The compression rate from this implementation will be lower than the number from the original paper, because we use more compact bit representation for encoded data, in this repo implementation, the data representation is looser, this implementation use the common c++ data types like CHAR, INT, FLOAT, SHORT, etc. Therefore, the compression rate will decrease in some extend.
+These compression encoder and decoder are designed for [KITTI dataset](http://www.cvlibs.net/datasets/kitti/) and LiDAR device, [Velodyne HDL-64E](https://velodynelidar.com/products/hdl-64e/). More specifically, the vertical angle range for point cloud is from -25 degree to 5 degree. For other application settings, please check out [`config.h`](https://github.com/horizon-research/Real-Time-Spatio-Temporal-LiDAR-Point-Cloud-Compression/blob/master/src/config.h) and change parameters, `ROW_OFFSET`, `COL_OFFSET`, `VERTICAL_DEGREE` and `HORIZONTAL_DEGREE`.
+
+The compression rate from this implementation will be lower than the number from the original paper, because we use more compact bit representation for encoded data. In this repo implementation, the data representation is looser, this implementation use the common c++ data types like CHAR, INT, FLOAT, SHORT, etc. Therefore, the compression rate will decrease to some extents.
 
 ## Citation
 
@@ -96,7 +98,7 @@ If you think this work is useful in your research, please consider cite our pape
 
 ## Related
 
-For more experimental data, please check out raw data from [KITTI](http://www.cvlibs.net/datasets/kitti/).
+For more experimental data, please check out raw data from [KITTI](http://www.cvlibs.net/datasets/kitti/). You can directly use the Velodyne data directly, just need to specify the data path and input data names during encoding and decoding.
 
 You can also check out:
   - [PCL library](http://docs.pointclouds.org/trunk/index.html): a open-sourced point cloud library.
