@@ -20,7 +20,6 @@ int main(int argc, char** argv) {
   opts.add_options()
     ("help,h", "Print help messages")
     ("file", po::value<std::string>(&file_path)->required(), "compressed data filename")
-    ("out", po::value<std::string>(&out_file)->required(), "raw point cloud data path")
     ("pitch,p", po::value<float>(&pitch_precision)->required(), "pitch precision")
     ("yaw,y", po::value<float>(&yaw_precision)->required(), "yaw precision")
     ("format,f",  po::value<std::string>(&input_format),
@@ -64,26 +63,37 @@ int main(int argc, char** argv) {
      exit(-1);
   }
 
+  std::string file_string;
+  std::vector<std::string> output_list;
+  import_filenames(output_list, "filenames.bin");
+  file_string += " filenames.bin";
+  out_file = output_list[0];
+
   // what we need to store:
   // 1. b_mat: binary map for tile type
   cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   import_b_mat(*b_mat, "b_mat.bin");
+  file_string += " b_mat.bin";
 
   // 2. planar coefficients
   std::vector<cv::Vec4f> coefficients;
   import_coefficients(coefficients, "coefficients.bin");
-  
+  file_string += " coefficients.bin";
+
   // 3. occ_mat: occupation map
   cv::Mat* occ_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
   import_occ_mat(*occ_mat, "occ_mat.bin");
+  file_string += " occ_mat.bin"; 
   
   // 4. unfit_nums: unfitted_nums
   std::vector<float> unfit_nums;
   import_unfit_nums(unfit_nums, "unfit_nums.bin");
+  file_string += " unfit_nums.bin";
   
   // 5. tile_fit_lengths
   std::vector<int> tile_fit_lengths;
   import_tile_fit_lengths(tile_fit_lengths, "tile_fit_lengths.bin");
+  file_string += " tile_fit_lengths.bin";
 
   // reconstruct the range image
   cv::Mat* r_mat = new cv::Mat(row, col, CV_32FC1, 0.f);
@@ -102,6 +112,13 @@ int main(int argc, char** argv) {
   delete r_mat;
   delete b_mat;
   delete occ_mat;
+  
+  cmd = "rm " + file_string;
+  if (system(cmd.c_str()) == -1) {
+    std::cout << "[ERROR]: 'rm' command executed failed." << std::endl;
+     exit(-1);
+  }
+
   return 0;
 }
 

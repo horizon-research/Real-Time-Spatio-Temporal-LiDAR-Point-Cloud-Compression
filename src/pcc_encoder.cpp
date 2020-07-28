@@ -10,7 +10,7 @@
 
 int main(int argc, char** argv) { 
   
-  std::string file_path, out_file;
+  std::string file_path, file_name, out_file;
   std::string input_format("binary");
   float pitch_precision, yaw_precision, threshold;
   int tile_size;
@@ -20,7 +20,8 @@ int main(int argc, char** argv) {
   po::options_description opts("PCC options");
   opts.add_options()
     ("help,h", "Print help messages")
-    ("file", po::value<std::string>(&file_path)->required(), "raw point cloud data path")
+    ("path", po::value<std::string>(&file_path)->required(), "raw point cloud data path")
+    ("file", po::value<std::string>(&file_name)->required(), "raw point cloud data path")
     ("out", po::value<std::string>(&out_file)->required(), "compressed data filename")
     ("pitch,p", po::value<float>(&pitch_precision)->required(), "pitch precision")
     ("yaw,y", po::value<float>(&yaw_precision)->required(), "yaw precision")
@@ -51,7 +52,12 @@ int main(int argc, char** argv) {
   
   // create a vector to store frames;
   std::vector<point_cloud> pcloud_data;
+  file_path = file_path + "/" + file_name;
   load_pcloud(file_path, pcloud_data);
+
+  std::vector<std::string> filenames;
+  filenames.push_back(file_name);
+  export_filenames(filenames, "filenames.bin");
 
   PccResult pcc_res;
 
@@ -131,14 +137,24 @@ int main(int argc, char** argv) {
   
   // 6. make a tar.gz file
   std::string cmd;
-  cmd = "tar -czvf" + out_file + " b_mat.bin" + " coefficients.bin"
-      + " occ_mat.bin" + " unfit_nums.bin" + " tile_fit_lengths.bin";
+  cmd = "tar -czvf" + out_file + " filenames.bin"  + " b_mat.bin"
+      + " coefficients.bin" + " occ_mat.bin"
+      + " unfit_nums.bin" + " tile_fit_lengths.bin";
 
   if (system(cmd.c_str()) == -1) {
     std::cout << "[ERROR]: 'tar' command executed failed." << std::endl;
     exit(-1);
   }
   
+  std::string rm_cmd;
+  cmd = rm_cmd + "rm " + " filenames.bin"  + " b_mat.bin"
+      + " coefficients.bin" + " occ_mat.bin"
+      + " unfit_nums.bin" + " tile_fit_lengths.bin";
+
+  if (system(cmd.c_str()) == -1) {
+    std::cout << "[ERROR]: 'rm' command executed failed." << std::endl;
+    exit(-1);
+  }
   return 0;
 }
 
