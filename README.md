@@ -23,10 +23,15 @@ To compile the entire repository, go to the `src` directory, use `Makefile` to c
  $ cd src; make
 ```
 
+**Note**: in `Makefile`, we use `OpenCV4`, but you can change it to different version if necessary.
+
 You will see three different bianry:
 * `pcc_encoder`: an encoder to encode one point cloud frame.
 * `pcc_decoder`: an decoder to decode one point cloud frame.
-* `pc_test`: this is an end-to-end test suite.
+* `pcc_test`: this is an end-to-end test suite.
+* `pcc_stream_encoder`: an encoder to encode a stream of multiple point cloud frames.
+* `pcc_stream_decoder`: an decoder to decode a stream of multiple point cloud frames.
+* `pcc_stream_test` : this is an end-to-end test for streaming compression.
 
 
 ## How to use
