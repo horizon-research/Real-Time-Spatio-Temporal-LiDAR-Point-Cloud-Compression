@@ -20,7 +20,6 @@ int main(int argc, char** argv) {
   po::options_description opts("PCC options");
   opts.add_options()
     ("help,h", "Print help messages")
-    ("output-files", po::value<std::vector<std::string>>()->multitoken(), "raw point cloud data path")
     ("input", po::value<std::string>(&input_file)->required(), "compressed data filename")
     ("pitch,p", po::value<float>(&pitch_precision)->required(), "pitch precision")
     ("yaw,y", po::value<float>(&yaw_precision)->required(), "yaw precision")
@@ -48,12 +47,6 @@ int main(int argc, char** argv) {
     return -1;
   }
   
-  // create a vector to store frames;
-  std::vector<std::string> output_list;
-  for (auto filename : vm["output-files"].as<std::vector<std::string>>()) {
-    output_list.push_back(filename);
-  }
-
   PccResult pcc_res;
 
   /*******************************************************************/
@@ -73,6 +66,11 @@ int main(int argc, char** argv) {
   }
   
   std::string file_string;
+  // import filenames
+  std::vector<std::string> output_list;
+  import_filenames(output_list, "filenames.bin");
+  file_string += " filenames.bin";
+  
   /*******************************************************************/
   // import occupation maps
   std::vector<cv::Mat*> occ_mats;
@@ -116,11 +114,13 @@ int main(int argc, char** argv) {
                                 plane_offsets, multi_tile_fit_lengths, 
                                 threshold, tile_size);
 
+  delete multi_mat;
+
   for (int i = 0; i < output_list.size(); i++) {
 
     auto r_mat = r_mats[i];
+    auto occ_mat = occ_mats[i];
     
-    cv::Mat* occ_mat = occ_mats[i];
     cv::Mat* b_mat = new cv::Mat(row/tile_size, col/tile_size, CV_32SC1, 0.f);
     std::vector<cv::Vec4f> coefficients;
     std::vector<int> tile_fit_lengths;
@@ -148,10 +148,7 @@ int main(int argc, char** argv) {
     
     pcloud2bin(output_list[i], restored_pcloud);
 
-    cv::Mat* f_mat2 = new cv::Mat(row, col, CV_32FC1, 0.f);
-    pcloud_to_mat<float>(restored_pcloud, *f_mat2, pitch_precision, yaw_precision);
-    
-    compute_loss_rate(*r_mat, restored_pcloud, pitch_precision, yaw_precision);  
+    delete b_mat;
   }
   
   std::string rm_cmd = "rm " + file_string;

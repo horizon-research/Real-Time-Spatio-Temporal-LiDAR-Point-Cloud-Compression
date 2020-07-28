@@ -126,7 +126,11 @@ int main(int argc, char** argv) {
   // command for making a tar.gz file
   std::string cmd = "tar -czvf " + out_file;
   std::string file_string;
-  
+ 
+  // output filenames
+  export_filenames(vm["input-files"].as<std::vector<std::string>>(), "filenames.bin");
+  file_string += " filenames.bin";
+
   for (int i = 0; i < pcloud_data_list.size(); i++) {
     auto pcloud_data = pcloud_data_list[i];
     auto f_mat = f_mats[i];

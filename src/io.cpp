@@ -165,3 +165,25 @@ void import_plane_offsets(std::vector<std::vector<float>>& data,
   }
   in_stream.close();
 }
+
+void export_filenames(const std::vector<std::string>& data, std::string filename) {
+  std::ofstream out_stream(filename);
+ 
+  for (auto str : data)
+    out_stream << str << std::endl;
+
+  out_stream.close();
+}
+
+
+void import_filenames(std::vector<std::string>& data, std::string filename) {
+  std::ifstream in_stream(filename);
+
+  std::string str;
+  while (getline(in_stream, str))
+    data.push_back(str);
+
+  in_stream.close();
+}
+
+
