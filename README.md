@@ -40,13 +40,13 @@ You will see three different bianry:
 
 We provide a simple data sample in our `data` directory. To encode this point cloud:
 ```
- $ ./pcc_encoder --file ../data/0000000000.bin -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frame.tar.gz
+ $ ./pcc_encoder --path ../data --file 0000000000.bin -p 0.18 -y 0.45 -f binary -l 4 -t 0.5 --out frame.tar.gz
 ```
 This will produce a tar ball file named `frame.tar.gz` that contained the compressed point cloud. `--file` flag is the input point cloud in binary form. `--out` is the output compressed file.
 
 To decompress this point cloud, use:
 ```
- $ ./pcc_decoder --out 0000000000.bin -p 0.18 -y 0.45 -f binary -l 4 --file frame.tar.gz
+ $ ./pcc_decoder -p 0.18 -y 0.45 -f binary -l 4 --file frame.tar.gz
 ```
 This will recontruct the compressed point cloud and store the recontructed point cloud into file named `0000000000.bin`.
 
