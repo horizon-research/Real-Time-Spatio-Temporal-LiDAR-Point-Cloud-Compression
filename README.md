@@ -61,9 +61,9 @@ This command will compress 5 point clouds (0000000000.bin-0000000004.bin) from d
 
 To recover these 5 point clouds, use the command:
 ```
- $ ./pcc_stream_decoder  -p 0.18 -y 0.45 -f binary -l 4 --input frames.tar.gz --output-files 0000000000.bin  0000000001.bin  0000000002.bin  0000000003.bin  0000000004.bin
+ $ ./pcc_stream_decoder  -p 0.18 -y 0.45 -f binary -l 4 --input frames.tar.gz
 ```
-This will reverse the compression process and generate 5 raw point cloud data.
+This will reverse the compression process and generate 5 raw point cloud data. `frames.tar.gz` can automatically store the ortiginal filenames.
 
 To test the end-to-end compression and decompression:
 ```
