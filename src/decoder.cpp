@@ -126,9 +126,9 @@ void calc_fit_nums_w_offset(cv::Mat& img, const cv::Vec4f& c, int occ_code, int 
   return;
 }
 
-double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat, 
+void multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat, 
                             const int* idx_sizes,
-                            std::vector<cv::Mat*>& occ_mats,
+                            const std::vector<cv::Mat*>& occ_mats,
                             std::vector<cv::Vec4f>& coefficients,
                             std::vector<std::vector<float>>& plane_offsets,
                             std::vector<int>& tile_fit_lengths, 
@@ -146,7 +146,7 @@ double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat,
       int len_itr = 0;
       int len = 0;
       cv::Vec4f c(0.f, 0.f, 0.f, 0.f);
-      std::vector<float> offsets;
+      std::vector<float> offsets = std::vector<float>(plane_offsets[fit_itr]);
   
       for (int c_idx = 0; c_idx < idx_sizes[1]; c_idx++) {
         // std::cout << "tile: " << r_idx << ", " << c_idx << std::endl;
@@ -168,7 +168,7 @@ double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat,
             len_itr++;
           } else {
             c = coefficients[fit_itr];
-            offsets = plane_offsets[fit_itr];
+            offsets = std::vector<float>(plane_offsets[fit_itr]);
             len_itr = 0;
             len = tile_fit_lengths[fit_itr];
             calc_fit_nums_w_offset(*(imgs[ch]), c, occ_code, c_idx, r_idx,
@@ -184,7 +184,6 @@ double multi_channel_decode(std:: vector<cv::Mat*>& imgs, cv::Mat& b_mat,
 
   std::cout << "Multi with fitting_cnts: " << fit_cnt
             << " with unfitting_cnts: " << unfit_cnt << std::endl;
-
 }
 
 }

@@ -114,7 +114,6 @@ int main(int argc, char** argv) {
                                 plane_offsets, multi_tile_fit_lengths, 
                                 threshold, tile_size);
 
-  delete multi_mat;
 
   for (int i = 0; i < output_list.size(); i++) {
 
@@ -148,7 +147,7 @@ int main(int argc, char** argv) {
     
     pcloud2bin(output_list[i], restored_pcloud);
 
-    delete b_mat;
+    // delete b_mat;
   }
   
   std::string rm_cmd = "rm " + file_string;
@@ -157,6 +156,7 @@ int main(int argc, char** argv) {
       exit(-1);
   }
 
+  delete multi_mat;
   std::cout << "**********************************************************" << std::endl;
 
   return 0;
