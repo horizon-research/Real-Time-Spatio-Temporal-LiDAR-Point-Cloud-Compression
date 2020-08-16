@@ -8,7 +8,7 @@ This repository is an end-to-end point cloud compression algorithms. The techniq
 
 In reality, most of objects in the real world are constructed based on certain regular shapes. It is uncommon that we cannot express those shapes in mathematically expression. Therefore, we leverage the mathematical expression to fitting a surface to a given point cloud and encode the coefficients.
 
-For more details, please check out our paper: [Real-Time Spatio-Temporal LiDAR Point Cloud Compression]()
+For more details, please check out our paper: [Real-Time Spatio-Temporal LiDAR Point Cloud Compression](https://www.cs.rochester.edu/horizon/pubs/iros20.pdf)
 
 Dependancies:
 * OpenCV4
